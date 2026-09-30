@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redefinir senha · Universal Juntas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Inter',system-ui,sans-serif;color:#eef2ef;background:radial-gradient(circle at 20% 10%,#0f3d24 0,#08110c 55%,#050907 100%)}
+.card{width:100%;max-width:400px;padding:30px 28px;border-radius:18px;background:rgba(19,28,38,.55);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.marca{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#7fd9a4;margin-bottom:6px}
+h1{font-size:22px;font-weight:800;margin-bottom:6px}
+.sub{font-size:13px;color:#9aa39d;margin-bottom:22px;line-height:1.5}
+label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#9aa39d;margin:14px 0 6px}
+input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.3);color:#eef2ef;font:600 14px 'Inter',sans-serif;outline:none}
+input:focus{border-color:#00833e;box-shadow:0 0 0 3px rgba(0,131,62,.25)}
+button{width:100%;margin-top:20px;padding:13px;border:none;border-radius:10px;background:#00833e;color:#fff;font:700 14px 'Inter',sans-serif;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+.msg{margin-top:14px;font-size:13px;line-height:1.5;padding:10px 12px;border-radius:9px;display:none}
+.msg.err{display:block;background:rgba(220,38,38,.15);border:1px solid rgba(248,113,113,.5);color:#fecaca}
+.msg.ok{display:block;background:rgba(0,131,62,.15);border:1px solid rgba(74,222,128,.45);color:#bbf7d0}
+.msg.info{display:block;background:rgba(37,99,235,.12);border:1px solid rgba(96,165,250,.4);color:#bfdbfe}
+a{color:#7fd9a4;font-weight:700}
+.oculto{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="marca">Universal Juntas · Controle de Terceiros</div>
+  <h1>Redefinir senha</h1>
+
+  <div id="passoNova" class="oculto">
+    <div class="sub">Digite a nova senha duas vezes.</div>
+    <label>Nova senha</label><input type="password" id="nova" autocomplete="new-password" placeholder="minimo 6 caracteres">
+    <label>Confirmar nova senha</label><input type="password" id="conf" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvar()">
+    <button id="btnSalvar" onclick="salvar()">Salvar nova senha</button>
+  </div>
+
+  <div id="passoEmail" class="oculto">
+    <div class="sub">Informe seu e-mail. Enviaremos um link para voce criar uma nova senha.</div>
+    <label>E-mail</label><input type="email" id="email" autocomplete="username" placeholder="seuemail@juntasuniversal.com.br" onkeydown="if(event.key==='Enter')enviar()">
+    <button id="btnEnviar" onclick="enviar()">Enviar link</button>
+  </div>
+
+  <div id="msg" class="msg info">Verificando o link...</div>
+</div>
+<script>
+var SB=null;
+try{SB=window.supabase.createClient('https://iaqbfpoejdgweihsrufw.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhcWJmcG9lamRnd2VpaHNydWZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NzIyNTAsImV4cCI6MjEwNjM0ODI1MH0.qpHWg7IDtftTds4Gzsek1J31YjlRkGj5R0HTie8y34o');}catch(e){}
+var SISTEMA=location.href.split('#')[0].split('?')[0].replace(/redefinir-senha\.html$/,'');
+function msg(t,c){var m=document.getElementById('msg');m.className='msg '+c;m.innerHTML=t;}
+function mostrar(id){document.getElementById('passoNova').classList.add('oculto');document.getElementById('passoEmail').classList.add('oculto');if(id)document.getElementById(id).classList.remove('oculto');}
+function erroDoLink(){var h=new URLSearchParams(location.hash.slice(1)),q=new URLSearchParams(location.search);return h.get('error_description')||q.get('error_description');}
+function salvar(){
+  var n=document.getElementById('nova').value,c=document.getElementById('conf').value,b=document.getElementById('btnSalvar');
+  if(n.length<6){msg('A senha precisa ter pelo menos 6 caracteres.','err');return;}
+  if(n!==c){msg('As duas senhas nao sao iguais.','err');return;}
+  b.disabled=true;msg('Salvando...','info');
+  SB.auth.updateUser({password:n}).then(function(r){
+    b.disabled=false;
+    if(r.error){msg('Nao foi possivel salvar: '+r.error.message+'. Peca um novo link.','err');return;}
+    SB.auth.signOut();mostrar(null);
+    msg('Senha alterada com sucesso. <a href="'+SISTEMA+'">Entrar no sistema</a>','ok');
+  });
+}
+function enviar(){
+  var em=document.getElementById('email').value.trim(),b=document.getElementById('btnEnviar');
+  if(!em){msg('Informe o e-mail.','err');return;}
+  b.disabled=true;msg('Enviando...','info');
+  SB.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0].split('?')[0]}).then(function(r){
+    b.disabled=false;
+    if(r.error){msg('Erro: '+r.error.message,'err');return;}
+    msg('Se este e-mail estiver cadastrado, voce vai receber um link em alguns minutos. Confira tambem o spam.','ok');
+  });
+}
+if(!SB){msg('Nao foi possivel conectar. Verifique a internet e recarregue a pagina.','err');}
+else{
+  var temToken=/access_token|type=recovery|code=/.test(location.hash+location.search),resolvido=false;
+  SB.auth.onAuthStateChange(function(ev,sess){
+    if(resolvido)return;
+    if(ev==='PASSWORD_RECOVERY'||(sess&&temToken)){resolvido=true;mostrar('passoNova');msg('Link confirmado. Crie sua nova senha.','info');}
+  });
+  setTimeout(function(){
+    if(resolvido)return;
+    var e=erroDoLink();
+    mostrar('passoEmail');
+    if(e)msg('Este link expirou ou ja foi usado. Peca um novo abaixo.','err');
+    else if(temToken)msg('Nao foi possivel validar o link. Peca um novo abaixo.','err');
+    else document.getElementById('msg').className='msg';
+  },1500);
+}
+</script>
+</body>
+</html>
