@@ -4195,9 +4195,27 @@ RPC.registrar_devolucao_entrada=function(p){return grava('registrar_devolucao_en
 RPC.registrar_inspecao=function(p){return grava('registrar_inspecao',{p_dados:p.p_dados});};
 RPC.excluir_saco=function(p){return grava('excluir_saco',{p_saco_id:String(p.p_saco_id),p_quem_excluiu:p.p_quem_excluiu||(usuarioLogado&&usuarioLogado.nome)||'',p_motivo:p.p_motivo||''});};
 RPC.reverter_status_saco=function(p){return grava('reverter_status_saco',{p_saco_id:String(p.p_saco_id),p_novo_status:p.p_novo_status,p_motivo:p.p_motivo||'Correcao pelo gestor'});};
-RPC.adicionar_item=function(p){return grava('adicionar_item',{p_aba:p.p_aba,p_vals:p.p_vals});};
-RPC.editar_item=function(p){return grava('editar_item',{p_aba:p.p_aba,p_row:Number(p.p_row),p_vals:p.p_vals});};
-RPC.editar_itens_lote=function(p){return grava('editar_itens_lote',{p_aba:p.p_aba,p_itens:p.p_itens});};
+async function criarLogin(email,senha){
+  var s=(await SBR.auth.getSession()).data.session;
+  var r=await fetch(SB_URL+'/functions/v1/criar-login',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+(s?s.access_token:'')},body:JSON.stringify({email:email,senha:senha})});
+  var j=await r.json().catch(function(){return {erro:'Resposta invalida do servidor ('+r.status+'). A funcao criar-login foi publicada?'};});
+  if(!r.ok||j.erro)throw new Error(j.erro||('Erro '+r.status));return j;
+}
+function loginDe(aba,v,novo){
+  v=v||[];var em,se;
+  if(aba==='Terceiros'){em=String(v[1]||'').trim();se=String(v[2]||'');if(!se)return novo?{erro:'Informe a senha do portal (minimo 6 caracteres).'}:null;if(!em)return {erro:'Informe o e-mail do terceiro.'};}
+  else if(aba==='Usuarios'){em=String(v[2]||'').trim();se=String(v[3]||'');if(!se)return null;if(!em)return {erro:'Para criar o login, informe o e-mail.'};}
+  else return null;
+  if(se.length<6)return {erro:'A senha precisa ter pelo menos 6 caracteres.'};
+  return {email:em,senha:se};
+}
+function semSenha(aba,v){v=(v||[]).slice();if(aba==='Terceiros')v[2]='';if(aba==='Usuarios')v[3]='';return v;}
+async function aplicarLogin(lg){if(!lg)return null;try{await criarLogin(lg.email,lg.senha);return null;}catch(e){return 'Cadastro salvo, mas o login nao foi criado: '+e.message+' Edite o cadastro e informe a senha de novo.';}}
+RPC.adicionar_item=async function(p){var lg=loginDe(p.p_aba,p.p_vals,true);if(lg&&lg.erro)return {erro:lg.erro};var d=await grava('adicionar_item',{p_aba:p.p_aba,p_vals:semSenha(p.p_aba,p.p_vals)});if(d&&d.erro)return d;var er=await aplicarLogin(lg);return er?{erro:er}:d;};
+RPC.editar_item=async function(p){var lg=loginDe(p.p_aba,p.p_vals,false);if(lg&&lg.erro)return {erro:lg.erro};var d=await grava('editar_item',{p_aba:p.p_aba,p_row:Number(p.p_row),p_vals:semSenha(p.p_aba,p.p_vals)});if(d&&d.erro)return d;var er=await aplicarLogin(lg);return er?{erro:er}:d;};
+RPC.editar_itens_lote=async function(p){var its=p.p_itens||[],lgs=[];for(var i=0;i<its.length;i++){var lg=loginDe(p.p_aba,its[i].vals,false);if(lg&&lg.erro)return {erro:lg.erro};if(lg)lgs.push(lg);}
+  var d=await grava('editar_itens_lote',{p_aba:p.p_aba,p_itens:its.map(function(x){return {row:x.row,vals:semSenha(p.p_aba,x.vals)};})});if(d&&d.erro)return d;
+  for(var k=0;k<lgs.length;k++){var er=await aplicarLogin(lgs[k]);if(er)return {erro:er};}return d;};
 RPC.excluir_item=function(p){return grava('excluir_item',{p_aba:p.p_aba,p_row:Number(p.p_row)});};
 function offOk(){if(!NET.online)throw new Error(MSG_OFF);}
 window.portalConfirmarRecebimento=function(terc,id){offOk();return grava('portal_confirmar_recebimento',{p_saco_id:String(id).trim()});};
