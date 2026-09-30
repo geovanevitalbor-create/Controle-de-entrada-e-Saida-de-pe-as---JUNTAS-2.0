@@ -4245,7 +4245,7 @@ window.irRastrear=function(){if(!logado){msg_('msgGate','<div class="alert alert
 window.gateEsqueci=function(){esqAbrir();};
 window.esqEnviar=function(){
   var em=document.getElementById('esqEmail').value.trim();if(!em){msg_('msgEsq','<div class="alert alert-err">Informe o e-mail.</div>');return;}
-  SBR.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname}).then(function(r){
+  SBR.auth.resetPasswordForEmail(em,{redirectTo:location.href.split('#')[0].split('?')[0].replace(/[^\/]*$/,'')+'redefinir-senha.html'}).then(function(r){
     if(r.error){msg_('msgEsq','<div class="alert alert-err">'+esc(r.error.message)+'</div>');return;}
     msg_('msgEsq','<div class="alert alert-ok">Enviamos um link para '+esc(em)+'. Abra o e-mail, clique no link e defina a nova senha.</div>');
   });
