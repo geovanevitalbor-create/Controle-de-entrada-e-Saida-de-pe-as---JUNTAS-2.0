@@ -923,7 +923,7 @@ RPC.buscar_saco_publico=function(p){
     repassos:ms.filter(function(m){return m.tipo==='SaidaRepasse';}).map(function(m){return {data:fmtBR(m.data),terceiro:m.terceiro,qtd:m.qtd};}),
     ordem:s.ordem,fabricante:s.fabricante,qtdAtual:s.qtd_atual,comFuncionario:funcDoSaco(s.saco_id),
     refugoTotal:soma(ms.filter(function(m){return m.tipo==='Refugo';}),function(m){return m.qtd;}),
-    diasFora:s.data_saida_real?Math.floor(((s.data_recebimento&&s.status!=='Em terceiro'?new Date(s.data_recebimento):new Date())-new Date(s.data_saida_real))/86400000):null,
+    diasFora:s.data_saida_real?diasCal(s.data_saida_real,(s.data_recebimento&&s.status!=='Em terceiro')?s.data_recebimento:new Date()):null,
     timeline:timelineDo(s)}};
 };
 function timelineDo(s){
@@ -1002,7 +1002,7 @@ RPC.get_peca_historico=function(p){
   function S(t){return soma(ms.filter(function(m){return m.tipo===t;}),function(m){return m.qtd;});}
   return {totalEnviado:soma(sacos,function(s){return s.qtd;}),totalRetornado:S('Recebido'),totalRepasse:S('Repasse'),totalRefugo:S('Refugo'),
     sacos:sacos.map(function(s){var pub=RPC.buscar_saco_publico({p_saco_id:s.saco_id}).info;
-      return {id:s.saco_id,terceiro:s.terceiro,dataSep:fmtBR(s.data_label),qtd:s.qtd,diasFora:s.data_saida_real?Math.floor(((s.data_recebimento?new Date(s.data_recebimento):new Date())-new Date(s.data_saida_real))/86400000):null,status:s.status,entradas:pub.entradas,repassos:pub.repassos};})};
+      return {id:s.saco_id,terceiro:s.terceiro,dataSep:fmtBR(s.data_label),qtd:s.qtd,diasFora:s.data_saida_real?diasCal(s.data_saida_real,s.data_recebimento||new Date()):null,status:s.status,entradas:pub.entradas,repassos:pub.repassos};})};
 };
 RPC.adicionar_item=function(p){var a=ABAS[p.p_aba],tb=DB[a[0]],v=p.p_vals;
   if(tb.some(function(r){return String(r[a[1][0]]).toLowerCase()===String(v[0]).toLowerCase();}))return {erro:'Ja cadastrado.'};
@@ -3004,6 +3004,7 @@ function chipConfTerc(id){
   if(s.confirmado_terceiro)return '<span class="chip-conf ok">&#10003; Terceiro confirmou · '+f(s.confirmado_terceiro)+'</span>';
   return '<span class="chip-conf pend">Aguardando confirmacao do terceiro</span>';
 }
+function diasCal(a,b){var x=new Date(a),y=new Date(b);x.setHours(0,0,0,0);y.setHours(0,0,0,0);return Math.max(0,Math.round((y-x)/86400000));}
 function badgeStatus_(sv,id,ter){
   if(sv==='Interno') return '<span class="badge b-interno">Devolucao · interno</span>';
   if(ter&&sv.indexOf('Em terceiro')!==-1){var fn=id?funcDoSaco(id):'';return '<span class="st-wrap"><span class="badge b-fora">Em terceiro / '+esc(ter)+(fn?' / '+esc(fn):'')+'</span>'+(id?chipConfTerc(id):'')+'</span>';}
