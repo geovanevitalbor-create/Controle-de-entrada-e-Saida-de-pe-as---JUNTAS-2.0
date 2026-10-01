@@ -3116,14 +3116,16 @@ function loadSaldo(){
   .then(function(d){ultimoDashData=d;renderSaldoTerc(d);})
   .catch(function(e){document.getElementById('saldoLista').innerHTML='<div class="alert alert-err">'+esc(e.message)+'</div>';});
 }
+var sldDados=null,sldAberto=null,sldAssin='';
 var SLD_NOMES={todos:'Todos os sacos',tempo:'Sacos que ja voltaram (base do tempo medio)',env:'Sacos enviados',ret:'Sacos que voltaram limpos',rp:'Sacos com repasse',ref:'Sacos com refugo',dev:'Sacos com devolucao',saldo:'Sacos com saldo em aberto (ainda com o terceiro)'};
 function sldSacos(td,ter,m){
   var tr=td.closest('tr'),nx=tr.nextElementSibling,mesmo=nx&&nx.classList.contains('pxt-sub-row')&&nx.dataset.m===m;
   document.querySelectorAll('#saldoLista .pxt-sub-row').forEach(function(x){x.remove();});document.querySelectorAll('#saldoLista .sld-row').forEach(function(x){x.classList.remove('aberto');});document.querySelectorAll('#saldoLista .sld-c.on').forEach(function(x){x.classList.remove('on');});
-  if(mesmo)return;
+  if(mesmo){sldAberto=null;return;}
   tr.classList.add('aberto');if(td.classList.contains('sld-c'))td.classList.add('on');
   var F={todos:function(){return true;},tempo:function(s){return s.recb>0||s.dev>0;},env:function(s){return s.env>0;},ret:function(s){return s.recb>0;},rp:function(s){return s.rp>0;},ref:function(s){return s.ref>0;},dev:function(s){return s.dev>0;},saldo:function(s){return s.env-s.recb-s.dev>0;}};
-  var l=((ultimoDashData&&ultimoDashData.sacos)||[]).filter(function(s){return s.ter===ter&&(s.env>0||m==='todos')&&F[m](s);}).sort(function(a,b){var o=['Em terceiro','Em Inspecao','Repasse','Devolucao','Separado','Interno','Conferido/Finalizado'];return o.indexOf(a.st)-o.indexOf(b.st)||b.num-a.num;});
+  sldAberto={ter:ter,m:m};
+  var l=((sldDados&&sldDados.sacos)||[]).filter(function(s){return s.ter===ter&&(s.env>0||m==='todos')&&F[m](s);}).sort(function(a,b){var o=['Em terceiro','Em Inspecao','Repasse','Devolucao','Separado','Interno','Conferido/Finalizado'];return o.indexOf(a.st)-o.indexOf(b.st)||b.num-a.num;});
   var n0=function(v){return v?fmtN(v):'<span class="pxt-z">-</span>';},col={env:3,ret:4,ref:5,rp:6,dev:7,saldo:8};
   var tot=l.reduce(function(a,s){return a+(m==='env'?s.env:m==='ret'?s.recb:m==='rp'?s.rp:m==='ref'?s.ref:m==='dev'?s.dev:m==='saldo'?s.env-s.recb-s.dev:0);},0);
   var html='<tr class="pxt-sub-row" data-m="'+m+'"><td colspan="9"><div class="pxt-sub"><div class="pxt-sub-h"><b>'+esc(ter)+'</b> · '+SLD_NOMES[m]+': '+l.length+' saco(s)'+(tot?' · '+fmtN(tot)+' pecas':'')+' · clique num saco para o historico</div>'+
@@ -3134,6 +3136,9 @@ function sldSacos(td,ter,m){
 }
 function renderSaldoTerc(d){
   try{
+    var assin=d?JSON.stringify([d.porTerc,d.sacos]):'';
+    if(assin&&assin===sldAssin&&document.querySelector('#saldoLista table')){sldDados=d;return;}
+    sldAssin=assin;sldDados=d;
     if(!d||!d.porTerc||!d.porTerc.length){document.getElementById('saldoLista').innerHTML='<div class="empty">Sem dados.</div>';return;}
     var ordenado=d.porTerc.slice().sort(function(a,b){
       if(a.tempoMedio==null&&b.tempoMedio==null)return 0;
@@ -3175,6 +3180,11 @@ function renderSaldoTerc(d){
     '</tr>';
     html+='</tbody></table>';
     document.getElementById('saldoLista').innerHTML=html;
+    if(sldAberto){var ab=sldAberto,ix=ordenado.findIndex(function(t){return t.nome===ab.ter;});
+      if(ix>=0){var linha=document.querySelectorAll('#saldoLista .sld-row')[ix];
+        var alvo=ab.m==='todos'?linha.children[1]:linha.querySelector('.sld-c[onclick*="\''+ab.m+'\')"]')||linha.children[1];
+        sldSacos(alvo,ab.ter,ab.m);}
+      else sldAberto=null;}
   }catch(e){document.getElementById('saldoLista').innerHTML='<div class="alert alert-err">Erro ao renderizar.</div>';}
 }
 function renderPxT(d){
