@@ -4179,7 +4179,25 @@ if(!SBR){document.addEventListener('DOMContentLoaded',function(){msg_('msgGate',
 var logado=null,sincT=null;
 function limpa(a){a.length=0;return a;}
 function num(v,d){var n=Number(v);return v==null||isNaN(n)?d:n;}
-async function tudo(t,cols,ordem){var out=[],de=0;for(;;){var r=await SBR.from(t).select(cols).order(ordem||'id').range(de,de+999);if(r.error)throw new Error(r.error.message);out=out.concat(r.data||[]);if(!r.data||r.data.length<1000)break;de+=1000;}return out;}
+var sairOrig=window.sairColab;
+window.sairColab=function(){logado=null;if(sincT)clearInterval(sincT);if(SBR)SBR.auth.signOut();sairOrig();};
+var sairPortalOrig=window.sairPortal;
+function jwtVencido(m){return /jwt expired|invalid jwt|jwt.*expir|token.*expir/i.test(String(m||''));}
+var renovando=null;
+async function renovarSessao(){
+  if(!renovando)renovando=SBR.auth.refreshSession().then(function(r){renovando=null;if(r.error||!r.data||!r.data.session)throw new Error('SESSAO');return true;},function(e){renovando=null;throw e;});
+  try{await renovando;return true;}catch(e){sessaoExpirada();return false;}
+}
+function sessaoExpirada(){
+  if(!logado)return;logado=null;if(sincT)clearInterval(sincT);
+  try{SBR.auth.signOut();}catch(e){}
+  alert('Sua sessao expirou e nada foi gravado. Entre novamente e repita o ultimo registro.');
+  try{if(usuarioLogado){sairOrig();}else{sairPortalOrig();}}catch(e){location.reload();}
+}
+async function comRenovacao(fn){var r=await fn();if(r&&r.error&&jwtVencido(r.error.message)){if(await renovarSessao())r=await fn();}return r;}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&logado&&SBR)SBR.auth.getSession().then(function(r){var s=r.data&&r.data.session;if(!s||(s.expires_at&&s.expires_at*1000-Date.now()<120000))renovarSessao();});});
+setInterval(function(){if(logado&&SBR)SBR.auth.getSession().then(function(r){var s=r.data&&r.data.session;if(s&&s.expires_at&&s.expires_at*1000-Date.now()<300000)renovarSessao();});},60000);
+async function tudo(t,cols,ordem){var out=[],de=0;for(;;){var r=await comRenovacao(function(){return SBR.from(t).select(cols).order(ordem||'id').range(de,de+999);});if(r.error)throw new Error(r.error.message);out=out.concat(r.data||[]);if(!r.data||r.data.length<1000)break;de+=1000;}return out;}
 window.sincronizar=async function(){
   var R=await Promise.all([tudo('terceiros','id,nome,email,prazo_dias,endereco,lat,lng,ativo'),tudo('usuarios','id,nome,matricula,email,acessos,ativo'),tudo('pecas','id,codigo,descricao,ativo','codigo'),tudo('materias_primas','id,tipo,ativo','tipo'),tudo('funcionarios_terceiro','*'),tudo('saidas','*'),tudo('movimentacoes','*','data'),tudo('historico_funcionario','*','entregue_em')]);
   var T=R[0],U=R[1],P=R[2],M=R[3],F=R[4],S=R[5],MV=R[6],H=R[7],tN={},uN={},uM={};
@@ -4198,7 +4216,7 @@ window.sincronizar=async function(){
   return true;
 };
 function atualizarSelects(){try{carregarOperadoresSelect();recarregarTerceirosSelect();recarregarMatsSelect();recarregarFerramentasSelect();}catch(e){}}
-async function srv(n,p){var r=await SBR.rpc(n,p||{});if(r.error)throw new Error(r.error.message);return r.data;}
+async function srv(n,p){var r=await comRenovacao(function(){return SBR.rpc(n,p||{});});if(r.error)throw new Error(jwtVencido(r.error.message)?'Sua sessao expirou. Entre novamente.':r.error.message);return r.data;}
 async function grava(n,p,lanca){var d=await srv(n,p);if(d&&d.erro){if(lanca)throw new Error(d.erro);return d;}await window.sincronizar();return d;}
 RPC.registrar_separacao=function(p){return grava('registrar_separacao',{p_dados:p.p_dados},true);};
 RPC.registrar_saida_manual=function(p){return grava('registrar_saida_manual',{p_saco_id:String(p.p_saco_id),p_quem_fez:p.p_quem_fez||'',p_terceiro:p.p_terceiro||null,p_qtd:p.p_qtd?Number(p.p_qtd):null,p_motivo_qtd:p.p_motivo_qtd||null});};
@@ -4266,9 +4284,6 @@ window.gateEntrar=async function(){
   }catch(e){msg_('msgGate','<div class="alert alert-err">'+esc(e.message)+'</div>');}
   btn.disabled=false;
 };
-var sairOrig=window.sairColab;
-window.sairColab=function(){logado=null;if(sincT)clearInterval(sincT);if(SBR)SBR.auth.signOut();sairOrig();};
-var sairPortalOrig=window.sairPortal;
 window.sairPortal=function(){logado=null;if(sincT)clearInterval(sincT);if(SBR)SBR.auth.signOut();sairPortalOrig();};
 var rastrOrig=window.irRastrear;
 window.irRastrear=function(){if(!logado){msg_('msgGate','<div class="alert alert-warn">Entre com seu login para rastrear um saco.</div>');return;}rastrOrig();};
