@@ -411,7 +411,7 @@ td.r,th.r{text-align:right}
 .pxt-z{color:var(--text3);opacity:.5}
 .pxt-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:11px;color:var(--text3)}
 .pxt-card{background:rgba(19,28,38,.34);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.pxt-head{display:grid;grid-template-columns:18px 1.2fr 1.5fr repeat(5,.75fr);gap:18px;align-items:center;padding:14px 18px;cursor:pointer}
+.pxt-head{display:grid;grid-template-columns:18px 1.2fr 1.3fr repeat(6,.72fr);gap:18px;align-items:center;padding:14px 18px;cursor:pointer}
 .pxt-head:hover{background:rgba(0,131,62,.07)}
 .pxt-chev{width:14px;height:14px;stroke:var(--text3);stroke-width:2;fill:none;transition:transform .2s}
 .pxt-card.aberto .pxt-chev{transform:rotate(90deg)}
@@ -989,10 +989,10 @@ RPC.get_dash=function(p){
     if(m.tipo==='Saida'||m.tipo==='SaidaRepasse')o.enviado+=m.qtd;else if(m.tipo==='Recebido')o.rec+=m.qtd;else if(m.tipo==='Inspecao')o.boas+=m.qtd;else if(m.tipo==='Refugo')o.refugo+=m.qtd;else if(m.tipo==='Devolucao')o.devolucao+=(m.qtdEnv||m.qtd);else if(m.tipo==='Repasse')o.repasse+=m.qtd;});
   movs.forEach(function(m){if(m.tipo!=='Saida'&&m.tipo!=='SaidaRepasse')return;var o=tp[m.terceiro+'|'+m.peca];
     var r=DB.movs.find(function(x){return x.saco_id===m.saco_id&&x.tipo==='Recebido'&&x.data>=m.data;});
-    o.dias=(o.dias||0)+Math.max(0,((r?new Date(r.data):new Date())-new Date(m.data))/86400000);o.ciclos=(o.ciclos||0)+1;});
+    o.dias=(o.dias||0)+diasCal(m.data,r?r.data:new Date());o.ciclos=(o.ciclos||0)+1;});
   sacos.forEach(function(s){if(s.status!=='Em Inspecao')return;var k=s.terceiro+'|'+s.peca;if(tp[k])tp[k].insp+=s.qtd_atual;});
   var porTercPeca=Object.keys(tp).map(function(k){var o=tp[k];o.recebido=Math.max(0,o.rec-o.devolucao);delete o.rec;return o;}).sort(function(a,b){return a.terceiro===b.terceiro?String(a.peca).localeCompare(b.peca):a.terceiro.localeCompare(b.terceiro);});
-  var lista=sacos.slice().sort(function(a,b){return b.num-a.num;}).map(function(s){var ms=movsDo(s.saco_id),u=ms[ms.length-1],dias=u?Math.floor((Date.now()-new Date(u.data))/86400000):0,pz=prazoDe(s.terceiro),sm=function(t){return soma(ms.filter(function(m){return t.indexOf(m.tipo)!==-1;}),function(m){return m.tipo==='Devolucao'?(m.qtdEnv||m.qtd):m.qtd;});},dv=sm(['Devolucao']);
+  var lista=sacos.slice().sort(function(a,b){return b.num-a.num;}).map(function(s){var ms=movsDo(s.saco_id),u=ms[ms.length-1],dias=u?diasCal(u.data,new Date()):0,pz=prazoDe(s.terceiro),sm=function(t){return soma(ms.filter(function(m){return t.indexOf(m.tipo)!==-1;}),function(m){return m.tipo==='Devolucao'?(m.qtdEnv||m.qtd):m.qtd;});},dv=sm(['Devolucao']);
     return {num:s.num,id:s.saco_id,ter:s.terceiro,pec:s.peca,qtd:s.qtd_atual,st:s.status,op:s.operador,mat:s.matricula,dataSep:fmtBR(s.data_label),dias:dias,prazo:pz,atrasado:s.status==='Em terceiro'&&dias>pz,desdeIso:u?u.data:null,env:sm(['Saida','SaidaRepasse']),recb:Math.max(0,sm(['Recebido'])-dv),ref:sm(['Refugo']),rp:sm(['Repasse']),dev:dv};});
   return {tots:tots,porStatus:porStatus,porTerc:porTerc,inspecoes:movs.filter(function(m){return m.tipo==='Inspecao';}).map(function(m){return {dataIso:m.data,id:m.saco_id,ter:m.terceiro,pec:m.peca,env:m.qtdEnv||0,boa:m.qtd||0,ref:m.refugo||0,rep:m.qtdRep||0,motivo:m.motivo||'',quem:m.quem||''};}),sacosFiltrados:sacosFiltrados,sacos:lista,porTercPeca:porTercPeca,motivos:Object.keys(mot).map(function(k){return {m:k,v:mot[k]};})};
 };
