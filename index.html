@@ -751,6 +751,7 @@ tr.pxt-tot td{background:rgba(0,131,62,.16)!important;font-weight:800;color:var(
 .chip-conf.ok{color:#86efac;background:rgba(22,163,74,.15);border-color:rgba(74,222,128,.45)}
 .chip-conf.pend{color:#9ca3af;background:rgba(127,127,127,.1);border-color:rgba(156,163,175,.35)}
 .chip-conf.ret{color:#93c5fd;background:rgba(37,99,235,.15);border-color:rgba(96,165,250,.45)}
+.rt-fs:not(:empty){display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 10px;padding:8px 12px;border-radius:9px;background:rgba(0,131,62,.1);border:1px solid rgba(0,131,62,.35);font-size:12px;color:var(--text2)}
 #scPortal iframe{border:0;width:100%;height:100vh;display:block;position:relative;z-index:1}
 </style>
 </head>
@@ -838,7 +839,7 @@ function rpc(nome,params){
   },function(e){if(ehRede(e&&e.message)||(e&&e.name==='TypeError')){netFalhou();throw new Error(escrita?MSG_OFF:'SEM CONEXAO com o banco de dados: nao foi possivel carregar os dados.');}throw e;});
 }
 function admVis(id){var e=document.getElementById(id),pd=document.getElementById('pDash');if(!e||e.style.display==='none')return false;return !pd||(pd.style.display!=='none'&&!pd.hidden&&getComputedStyle(pd).display!=='none');}
-function admRecarregar(){
+function admRecarregar(){window.__admVer=window.DADOS_VER;
   var sc=document.getElementById('scAdmin');if(!sc||!sc.classList.contains('active'))return;
   if(document.querySelector('#scAdmin .ms.aberto'))return;
   if(admVis('dpTempoReal'))loadTempoReal();
@@ -846,7 +847,8 @@ function admRecarregar(){
   else if(admVis('dpTerceiros')){ultimoDashData=null;loadSaldo();}
   else if(admVis('dpVisao')||admVis('dpPecas'))loadDash();
 }
-setInterval(admRecarregar,30000);
+function telaOcupada(){return !!document.querySelector('.login-overlay.open,.ms.aberto,.pxt-sub-row,.dl-wrap.aberto,.sh-ev.aberto');}
+setInterval(function(){if(window.DADOS_VER!==undefined&&window.__admVer===window.DADOS_VER)return;if(telaOcupada())return;admRecarregar();},30000);
 function acessosDe(p){return String(p||'').split(',').map(function(x){return x.trim();}).filter(Boolean);}
 function podeP(p,a){var l=acessosDe(p);if(l.indexOf('Gestor total')!==-1&&a==='painel')return true;return l.indexOf({envio:'Envio',receb:'Recebimento',rastr:'Rastreio',painel:'Painel consulta'}[a])!==-1;}
 function senhaAdmin(s){return DB.usuarios.some(function(u){return acessosDe(u.perfil).indexOf('Gestor total')!==-1&&u.senha===s;});}
@@ -1735,7 +1737,7 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
           <div class="chart-box"><h3>Status Atual (sacos)</h3><div class="chart-h"><canvas id="cDonutRT"></canvas></div></div>
           <div class="chart-box"><h3>Pecas em Terceiro Agora (por terceiro)</h3><div class="chart-h"><canvas id="cBarraRT"></canvas></div></div>
         </div>
-        <div class="tbl-box"><h3>Sacos (conforme filtro)</h3>
+        <div class="tbl-box"><h3>Sacos (conforme filtro)</h3><div id="rtFiltroStatus" class="rt-fs"></div>
           <table><thead><tr><th>No</th><th>ID</th><th>Terceiro</th><th>Peca</th><th>Qtd</th><th>Status atual do saco</th><th>Separado por</th><th>Data Sep.</th><th>Dias no Status</th></tr></thead>
           <tbody id="tSacos"></tbody></table>
           <div class="pg" id="pgSacos"></div>
@@ -2954,17 +2956,20 @@ function loadTempoReal(){
   var filtros={terceiro:msVals('fTercRT'),status:msVals('fStatusRT'),
     peca:msVals('fPecaRT'),num:(document.getElementById('fNumRT')||{}).value||'',di:'',df:'',lanc:''};
   ['rtSep','rtFora','rtInsp','rtConf','rtRep','rtDevol','rtPecs','rtPecInsp'].forEach(function(id){document.getElementById(id).textContent='...';});
-  rpc('get_dash',{p_filtros:filtros}).then(renderTempoReal).catch(function(e){console.error(e);});
+  var semStatus=Object.assign({},filtros,{status:[],num:''});
+  Promise.all([rpc('get_dash',{p_filtros:filtros}),filtros.status.length||filtros.num?rpc('get_dash',{p_filtros:semStatus}):null]).then(function(r){renderTempoReal(r[0],r[1]||r[0]);}).catch(function(e){console.error(e);});
+  var fs=document.getElementById('rtFiltroStatus');if(fs)fs.innerHTML=filtros.status.length?'Tabela filtrada por: <b>'+filtros.status.map(function(s){return s==='__atraso'?'Fora do prazo':s;}).join(', ')+'</b> · os indicadores mostram todos os status <button class="btn btn-ghost btn-sm" onclick="limparStatusRT()">Mostrar todos</button>':'';
 }
+function limparStatusRT(){var s=document.getElementById('fStatusRT');Array.from(s.options).forEach(function(o){o.selected=false;});msRefreshAll();loadTempoReal();}
 function consultarSacoRT(){
   var v=document.getElementById('fNumRT').value.trim();if(!v){loadTempoReal();return;}
   rpc('buscar_saco_publico',{p_saco_id:v}).then(function(p){loadTempoReal();if(p&&!p.erro&&p.info)verHistoricoSaco(p.info.id);else alert('Saco nao encontrado: '+v);}).catch(function(){loadTempoReal();});
 }
 function limparTempoReal(){document.getElementById('fNumRT').value='';['fTercRT','fStatusRT','fPecaRT'].forEach(function(id){document.getElementById(id).value='';});msRefreshAll();loadTempoReal();}
-function renderTempoReal(d){
+function renderTempoReal(dTab,dAll){
   try{
-    var t=d.tots;
-    dashPg.sacos.data=d.sacos||[];dashPg.sacos.page=1;renderPgSacos();
+    var d=dAll||dTab,t=d.tots;
+    dashPg.sacos.data=dTab.sacos||[];dashPg.sacos.page=1;renderPgSacos();
     document.getElementById('rtAtr').innerHTML=fmtN((d.sacos||[]).filter(function(s){return s.atrasado;}).length)+' <span class="unit">sacos</span>';
     document.getElementById('rtSep').innerHTML=fmtN(t.separado)+' <span class="unit">sacos</span>';
     document.getElementById('rtFora').innerHTML=fmtN(t.emTerceiro)+' <span class="unit">sacos</span>';
@@ -4031,7 +4036,7 @@ function carregarSepHoje(){
     renderSepHoje();
   }).catch(function(e){document.getElementById('shTabela').innerHTML='<div class="alert alert-err">'+esc(e.message)+'</div>';});
 }
-setInterval(function(){var s=document.getElementById('scSepHoje');if(s&&s.classList.contains('active'))carregarSepHoje();},30000);
+setInterval(function(){var s=document.getElementById('scSepHoje');if(window.DADOS_VER!==undefined&&window.__shVer===window.DADOS_VER)return;if(telaOcupada())return;window.__shVer=window.DADOS_VER;if(s&&s.classList.contains('active'))carregarSepHoje();},30000);
 function limparSepHoje(){['shTerc','shPeca','shOp','shStatus'].forEach(function(id){Array.from(document.getElementById(id).options).forEach(function(o){o.selected=false;});});document.getElementById('shBusca').value='';msRefreshAll();renderSepHoje();}
 function renderSepHoje(){
   var fT=msVals('shTerc'),fP=msVals('shPeca'),fO=msVals('shOp'),fS=msVals('shStatus'),b=document.getElementById('shBusca').value.trim().toLowerCase();
@@ -4077,7 +4082,7 @@ function carregarRecCons(){
     renderRecCons();
   }).catch(function(e){document.getElementById('rcTabela').innerHTML='<div class="alert alert-err">'+esc(e.message)+'</div>';});
 }
-setInterval(function(){var s=document.getElementById('scRecCons');if(s&&s.classList.contains('active'))carregarRecCons();},30000);
+setInterval(function(){var s=document.getElementById('scRecCons');if(window.DADOS_VER!==undefined&&window.__rcVer===window.DADOS_VER)return;if(telaOcupada())return;window.__rcVer=window.DADOS_VER;if(s&&s.classList.contains('active'))carregarRecCons();},30000);
 function limparRecCons(){['rcStatus','rcTerc','rcPeca'].forEach(function(id){Array.from(document.getElementById(id).options).forEach(function(o){o.selected=false;});});document.getElementById('rcBusca').value='';msRefreshAll();renderRecCons();}
 function rcFiltrarStatus(v){Array.from(document.getElementById('rcStatus').options).forEach(function(o){o.selected=o.value===v;});msRefreshAll();renderRecCons();}
 function renderRecCons(){
@@ -4232,6 +4237,8 @@ setInterval(function(){if(logado&&SBR)SBR.auth.getSession().then(function(r){var
 async function tudo(t,cols,ordem){var out=[],de=0;for(;;){var r=await comRenovacao(function(){return SBR.from(t).select(cols).order(ordem||'id').range(de,de+999);});if(r.error)throw new Error(r.error.message);out=out.concat(r.data||[]);if(!r.data||r.data.length<1000)break;de+=1000;}return out;}
 window.sincronizar=async function(){
   var R=await Promise.all([tudo('terceiros','id,nome,email,prazo_dias,endereco,lat,lng,ativo'),tudo('usuarios','id,nome,matricula,email,acessos,ativo'),tudo('pecas','id,codigo,descricao,ativo','codigo'),tudo('materias_primas','id,tipo,ativo','tipo'),tudo('funcionarios_terceiro','*'),tudo('saidas','*'),tudo('movimentacoes','*','data'),tudo('historico_funcionario','*','entregue_em')]);
+  var txt=JSON.stringify(R),hs=5381;for(var ci=0;ci<txt.length;ci++){hs=((hs<<5)+hs+txt.charCodeAt(ci))|0;}
+  var assin=txt.length+':'+hs;if(assin===window.__dadosAssin&&window.DADOS_VER!==undefined)return false;window.__dadosAssin=assin;window.DADOS_VER=(window.DADOS_VER||0)+1;
   var T=R[0],U=R[1],P=R[2],M=R[3],F=R[4],S=R[5],MV=R[6],H=R[7],tN={},uN={},uM={};
   T.forEach(function(t){tN[t.id]=t.nome;});U.forEach(function(u){uN[u.id]=u.nome;uM[u.id]=u.matricula||'';});
   limpa(DB.terceiros);T.filter(function(t){return t.ativo;}).forEach(function(t){DB.terceiros.push({id:t.id,nome:t.nome,email:t.email,senha:'',prazo:t.prazo_dias,endereco:t.endereco||'',lat:num(t.lat,-23.31),lng:num(t.lng,-51.36)});});
