@@ -758,6 +758,12 @@ tr.pxt-tot td{background:rgba(0,131,62,.16)!important;font-weight:800;color:var(
 .kpi:hover .kvf-a{opacity:0;transform:rotateX(90deg) translateY(-4px)}
 .kpi:hover .kvf-b{opacity:1;transform:rotateX(0) translateY(0)}
 .kpi:hover .kvf-b .unit{color:var(--accent)}
+.conta-row{display:grid;align-items:stretch;gap:0}.conta-row.c3{grid-template-columns:1fr 26px 1fr 26px 1fr}.conta-row.c5{grid-template-columns:1fr 22px 1fr 22px 1fr 22px 1fr 22px 1fr}
+.conta-row .kpi{margin:0}
+.conta-op{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--text3)}
+.conta-dica{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text3);margin-left:8px}
+.conta-nota{margin-top:10px;font-size:11.5px;color:var(--text3)}.conta-nota b{color:var(--text2)}
+@media(max-width:900px){.conta-row{grid-template-columns:1fr}.conta-op{padding:2px 0}}
 #scPortal iframe{border:0;width:100%;height:100vh;display:block;position:relative;z-index:1}
 </style>
 </head>
@@ -1751,18 +1757,11 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
       </div>
       <div id="dpVisao" style="display:none">
         <div class="unit-group">
-          <div class="unit-group-ttl"><span class="tag tag-periodo">PERIODO</span>Lancamentos no periodo filtrado</div>
-          <div class="kpi-row">
-            <div class="kpi kp"><div class="kpi-bar"></div><div class="kpi-lbl">Separacoes</div><div class="kpi-val" id="kSeparacoes">-</div></div>
-            <div class="kpi kt"><div class="kpi-bar"></div><div class="kpi-lbl">Sacos Enviados</div><div class="kpi-val" id="kSacosEnv">-</div></div>
-            <div class="kpi kt"><div class="kpi-bar"></div><div class="kpi-lbl">Pecas Enviadas</div><div class="kpi-val" id="kPecEnv">-</div></div>
-            <div class="kpi kg"><div class="kpi-bar"></div><div class="kpi-lbl">Sacos Recebidos</div><div class="kpi-val" id="kSacosReceb">-</div></div>
-            <div class="kpi kg"><div class="kpi-bar"></div><div class="kpi-lbl">Pecas Recebidas</div><div class="kpi-val" id="kPecConf">-</div></div>
-            <div class="kpi kr"><div class="kpi-bar"></div><div class="kpi-lbl">Pecas em Repasse</div><div class="kpi-val" id="kPecRep">-</div></div>
-            <div class="kpi kf"><div class="kpi-bar"></div><div class="kpi-lbl">Pecas Refugadas</div><div class="kpi-val" id="kRefugo">-</div></div>
-            <div class="kpi ks"><div class="kpi-bar"></div><div class="kpi-lbl">Sacos Devolucao</div><div class="kpi-val" id="kSacosDevol">-</div></div>
-            <div class="kpi ks"><div class="kpi-bar"></div><div class="kpi-lbl">Pecas Devolvidas</div><div class="kpi-val" id="kPecDevol">-</div></div>
-          </div>
+          <div class="unit-group-ttl"><span class="tag tag-periodo">PERIODO</span>A conta do periodo filtrado <span class="conta-dica">passe o mouse nos cards para ver em sacos</span></div>
+          <div class="conta-row c3"><div class="kpi kt" title="Pecas que sairam da fabrica no periodo (envios + repasses)"><div class="kpi-bar"></div><div class="kpi-lbl">Enviado aos terceiros</div><div class="kpi-val" id="kPecEnv">-</div></div><div class="conta-op">=</div><div class="kpi kg" title="Pecas que voltaram dos terceiros no periodo (limpas ou sem limpeza)"><div class="kpi-bar"></div><div class="kpi-lbl">Chegou na fabrica</div><div class="kpi-val" id="kPecConf">-</div></div><div class="conta-op">+</div><div class="kpi ka" title="Enviado - chegou, no periodo. Se der negativo, chegaram no periodo pecas enviadas antes dele"><div class="kpi-bar"></div><div class="kpi-lbl">Ainda com terceiros</div><div class="kpi-val" id="kContaSaldo">-</div></div></div>
+          <div class="unit-group-ttl" style="margin-top:14px"><span class="tag tag-periodo" style="background:rgba(22,163,74,.15);color:#4ade80;border-color:rgba(22,163,74,.4)">CHEGOU</span>As <b id="kContaChegou">-</b> pecas que chegaram na fabrica foram para</div>
+          <div class="conta-row c5"><div class="kpi kg" title="Pecas aprovadas na inspecao"><div class="kpi-bar"></div><div class="kpi-lbl">Aprovadas (boas)</div><div class="kpi-val" id="kContaBoas">-</div></div><div class="conta-op">+</div><div class="kpi kf" title="Pecas reprovadas na inspecao"><div class="kpi-bar"></div><div class="kpi-lbl">Refugo</div><div class="kpi-val" id="kRefugo">-</div></div><div class="conta-op">+</div><div class="kpi kr" title="Pecas que voltaram ao terceiro para refazer"><div class="kpi-bar"></div><div class="kpi-lbl">Repasse</div><div class="kpi-val" id="kPecRep">-</div></div><div class="conta-op">+</div><div class="kpi ks" title="Pecas que voltaram sem limpeza"><div class="kpi-bar"></div><div class="kpi-lbl">Devolucao</div><div class="kpi-val" id="kPecDevol">-</div></div><div class="conta-op">+</div><div class="kpi ki" title="Chegaram no periodo e ainda nao foram conferidas"><div class="kpi-bar"></div><div class="kpi-lbl">Aguardando inspecao</div><div class="kpi-val" id="kContaAguard">-</div></div></div>
+          <div class="conta-nota">Separacoes no periodo: <b id="kSeparacoes">-</b> · <span id="kContaCheck"></span></div>
         </div>
         <div class="unit-group">
           <div class="unit-group-ttl"><span class="tag tag-pecas" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.4)">AO VIVO</span>Situacao agora (nao depende das datas do filtro)</div>
@@ -2954,7 +2953,7 @@ function loadDash(){
   var filtros={terceiro:msVals('fTerc'),status:msVals('fStatus'),
     num:document.getElementById('fNum').value,di:document.getElementById('fDi').value,df:document.getElementById('fDf').value,
     peca:msVals('fPeca'),lanc:msVals('fLanc')};
-  ['kSeparacoes','kSacosEnv','kPecEnv','kSacosReceb','kPecConf','kPecRep','kRefugo','kSacosDevol','kPecDevol'].forEach(function(id){document.getElementById(id).textContent='...';});
+  ['kSeparacoes','kPecEnv','kPecConf','kPecRep','kRefugo','kPecDevol','kContaSaldo','kContaBoas','kContaAguard'].forEach(function(id){document.getElementById(id).textContent='...';});
   rpc('get_dash',{p_filtros:filtros}).then(renderDash).catch(function(e){console.error(e);});
 }
 function limparDash(){['fTerc','fStatus','fNum','fDi','fDf','fPeca','fLanc'].forEach(function(id){document.getElementById(id).value='';});msRefreshAll();loadDash();}
@@ -3086,15 +3085,20 @@ function renderDash(d){
   try{
     ultimoDashData=d;renderSaldoTerc(d);
     var t=d.tots;
-    document.getElementById('kSeparacoes').innerHTML=fmtN(t.separacoes||0)+' <span class="unit">sacos</span>';
-    document.getElementById('kSacosEnv').innerHTML=fmtN(t.sacosEnviados||0)+' <span class="unit">sacos</span>';
-    document.getElementById('kPecEnv').innerHTML=fmtN(t.pecasEnviadas||0)+' <span class="unit">pecas</span>';
-    document.getElementById('kSacosReceb').innerHTML=fmtN(t.sacosRecebidos||0)+' <span class="unit">sacos</span>';
-    document.getElementById('kPecConf').innerHTML=fmtN(t.pecasConferidas||0)+' <span class="unit">pecas</span>';
-    document.getElementById('kPecRep').innerHTML=fmtN(t.pecasRepasse||0)+' <span class="unit">pecas</span>';
-    document.getElementById('kRefugo').innerHTML=fmtN(t.refugoTotal||0)+' <span class="unit">pecas</span>';
-    document.getElementById('kSacosDevol').innerHTML=fmtN(t.sacosDevolucao||0)+' <span class="unit">sacos</span>';
-    document.getElementById('kPecDevol').innerHTML=fmtN(t.pecasDevolucao||0)+' <span class="unit">pecas</span>';
+    var EV=d.sacosFiltrados||[],sacosDe=function(tp){var o={};EV.forEach(function(e){if(tp.indexOf(e.tipo)!==-1)o[e.id]=1;});return Object.keys(o).length;},somaEv=function(tp,campo){return EV.filter(function(e){return tp.indexOf(e.tipo)!==-1;}).reduce(function(a,e){return a+(e[campo||'qtd']||0);},0);};
+    var env=t.pecasEnviadas||0,cheg=t.pecasConferidas||0,dev=t.pecasDevolucao||0,ref=t.refugoTotal||0,rp=t.pecasRepasse||0,boas=somaEv(['Inspecao']),sdo=env-cheg,ag=Math.max(0,cheg-boas-ref-rp-dev);
+    var fp=function(p,s){return '<span class="kvf"><span class="kvf-a">'+fmtN(p)+' <span class="unit">pecas</span></span><span class="kvf-b">'+fmtN(s)+' <span class="unit">sacos</span></span></span>';};
+    document.getElementById('kSeparacoes').textContent=fmtN(t.separacoes||0)+' sacos';
+    document.getElementById('kPecEnv').innerHTML=fp(env,t.sacosEnviados||0);
+    document.getElementById('kPecConf').innerHTML=fp(cheg,t.sacosRecebidos||0);
+    document.getElementById('kPecDevol').innerHTML=fp(dev,t.sacosDevolucao||0);
+    document.getElementById('kContaSaldo').innerHTML=fmtN(sdo)+' <span class="unit">pecas</span>';
+    document.getElementById('kContaChegou').textContent=fmtN(cheg);
+    document.getElementById('kContaBoas').innerHTML=fp(boas,sacosDe(['Inspecao']));
+    document.getElementById('kRefugo').innerHTML=fmtN(ref)+' <span class="unit">pecas</span>';
+    document.getElementById('kPecRep').innerHTML=fmtN(rp)+' <span class="unit">pecas</span>';
+    document.getElementById('kContaAguard').innerHTML=fmtN(ag)+' <span class="unit">pecas</span>';
+    document.getElementById('kContaCheck').innerHTML='Conferindo: '+fmtN(env)+' = '+fmtN(cheg)+' + '+fmtN(sdo)+(sdo<0?' <span style="color:#fbbf24">(negativo: chegaram no periodo pecas enviadas antes dele)</span>':'')+' · '+fmtN(cheg)+' = '+fmtN(boas)+' + '+fmtN(ref)+' + '+fmtN(rp)+' + '+fmtN(dev)+' + '+fmtN(ag);
     var gopts=function(extra){
       var base={onClick:function(e,els,c){abrirPxT(els.length&&c.config.type==='bar'?c.data.labels[els[0].index]:'');},onHover:function(e,els){e.native.target.style.cursor=els.length?'pointer':'default';},responsive:true,maintainAspectRatio:false,
         scales:{x:{stacked:true,ticks:{color:'#9aa39d',font:{size:9}},grid:{color:'rgba(255,255,255,.06)'}},
