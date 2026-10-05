@@ -956,7 +956,7 @@ function timelineDo(s){
     else if(m.tipo==='Recebido')add(m.data,'receb','Recebido na fabrica','Por '+m.quem+' · '+m.qtd+' pecas · vai para inspecao',base.concat([['Recebido por',opRE(m.quem)],['Quantidade no saco',m.qtd+' pecas'],['Vindo de',m.terceiro],['Dias com o terceiro',ult?dd(ult.data,m.data)+' dias (prazo '+prazoDe(m.terceiro)+')':''],['Proximo passo','Inspecao']]));
     else if(m.tipo==='Inspecao'){var dif=Math.max(0,(m.qtdEnv||0)-m.qtd-(m.qtdRep||0)),sem=(m.qtdEnv||0)-m.qtd-(m.refugo||0)-(m.qtdRep||0);
       add(m.data,m.refugo>0?'refugo':(m.qtdRep>0?'repasse':'insp'),'Inspecao concluida','Por '+m.quem+' · '+(m.qtdRep>0&&!m.qtd?'saco inteiro para repasse ('+m.qtdRep+' de '+m.qtdEnv+' pecas)':m.qtd+' de '+m.qtdEnv+' pecas')+(dif?' · diferenca '+dif:'')+(m.refugo?' · refugo '+m.refugo:'')+(m.qtdRep?' · repasse '+m.qtdRep:'')+(m.motivo?' · '+m.motivo:'')+(m.quemLimpou?' · limpou: '+m.quemLimpou:''),
-        base.concat([['Tipo','Conferencia'],['Conferente',opRE(m.quem)],['Limpo por (terceiro)',m.quemLimpou||'Nao informado'],['Pecas que foram',(m.qtdEnv||0)+' pecas'],['Aprovadas (boas)',boasMov(m)+' pecas'+(boasMov(m)!==m.qtd?' (registrado '+m.qtd+', corrigido: '+(m.qtdEnv||0)+' - refugo - repasse)':'')],['Refugo',(m.refugo||0)+' pecas'],['Repasse',(m.qtdRep||0)+' pecas'],['Faltando sem explicacao',sem+' pecas'],['Motivo informado',m.motivo||'-'],['Observacoes',m.obs||'-'],['Resultado',m.qtdRep>0?'Saco em Repasse (volta ao terceiro)':'Recebido e finalizado']]));}
+        base.concat([['Tipo','Conferencia'],['Conferente',opRE(m.quem)],['Limpo por (terceiro)',m.quemLimpou||'Nao informado'],['Pecas que foram',(m.qtdEnv||0)+' pecas'],['Aprovadas (boas)',boasMov(m)+' pecas'+(boasMov(m)!==m.qtd?' (registrado '+m.qtd+' com o refugo junto; boas = '+m.qtd+' - '+(m.refugo||0)+' de refugo)':'')],['Refugo',(m.refugo||0)+' pecas'],['Repasse',(m.qtdRep||0)+' pecas'],['Faltando sem explicacao',sem+' pecas'],['Motivo informado',m.motivo||'-'],['Observacoes',m.obs||'-'],['Resultado',m.qtdRep>0?'Saco em Repasse (volta ao terceiro)':'Recebido e finalizado']]));}
     else if(m.tipo==='Devolucao')add(m.data,'devol','Devolucao sem limpeza','Por '+m.quem+' · '+m.qtd+(m.qtdEnv&&m.qtdEnv>m.qtd?' de '+m.qtdEnv+' pecas · faltaram '+(m.qtdEnv-m.qtd)+(m.motivo?' ('+m.motivo+')':''):' pecas')+(m.obs?' · '+m.obs:''),
         base.concat([['Tipo','Devolucao sem limpeza'],['Decisao',m.destinoDev==='interno'?'Fica interno (fabrica resolve)':(m.destinoDev==='repassar'?'Repassar para outro terceiro':'')],['Recebido por',opRE(m.quem)],['Qtd esperada',(m.qtdEnv||m.qtd)+' pecas'],['Qtd retornada',m.qtd+' pecas'],['Faltaram',Math.max(0,(m.qtdEnv||m.qtd)-m.qtd)+' pecas'],['Motivo',m.motivo||'-'],['Observacoes',m.obs||'-'],['Proximo passo',m.destinoDev==='interno'?'Tratado internamente, sem nova saida':'Saida em Movimentacao > Saida']]));
     else if(m.tipo==='Exclusao')add(m.data,'excl','Etiqueta excluida','Por '+m.quem+' · '+m.motivo,base.concat([['Excluido por',m.quem],['Motivo',m.motivo]]));
@@ -1046,7 +1046,7 @@ RPC.reverter_status_saco=function(p){
   s.status=p.p_novo_status;if(s.status==='Em terceiro')portalAdd(s,false);else portalRemove(s.saco_id);
   return {novoStatus:s.status,movApagada:tipoLanc(u.tipo)};
 };
-function boasMov(m){var env=Number(m.qtdEnv)||0,q=Number(m.qtd)||0;if(!env)return q;return Math.max(0,Math.min(q,env-(Number(m.refugo)||0)-(Number(m.qtdRep)||0)));}
+function boasMov(m){var env=Number(m.qtdEnv)||0,q=Number(m.qtd)||0,rf=Number(m.refugo)||0,rp=Number(m.qtdRep)||0;if(env&&rf>0&&!m.motivo&&q+rf+rp>env)return Math.max(0,q-rf);return q;}
 function movsFabricaDoTerceiro(nome){
   var dev={};DB.movs.forEach(function(m){if(m.tipo==='Devolucao')dev[m.saco_id]=1;});
   var mapa={Saida:'Enviado',SaidaRepasse:'Repasse',Recebido:'Recebido',Refugo:'Refugo',Inspecao:'Aprovado'};
@@ -2245,7 +2245,7 @@ function iniciarInspecao(t){
 }
 function irSaidaRepasse(){if(devEntrada||devSaida){devEntrada=false;devSaida=false;restaurarBanners();}resetSaidaRepasse();prefQuem('repQuemFez');ir('scSaidaRepasse');}
 function prefQuem(id){var s=document.getElementById(id);if(s&&usuarioLogado&&Array.from(s.options).some(function(o){return o.value===usuarioLogado.nome;}))s.value=usuarioLogado.nome;}
-var MOTIVOS=['Refugo de terceiro','Refugo de producao','Contagem divergente'];
+var MOTIVOS=[],MOTIVOS_FALTA=['Contagem divergente','Perda / extravio no terceiro','Pecas misturadas em outro saco','Outro'],MOTIVOS_SOBRA=['Erro de contagem na saida (foi mais que o registrado)','Pecas de outro saco misturadas','Outro'];
 supabase.from('terceiros').select('nome').order('nome').then(function(res){
   try{
     var l=(res.data||[]).map(function(t){return t.nome;});
@@ -2665,11 +2665,15 @@ function calcDif(){
   var refugo=Number(rf.value)||0;
   var motivo=document.getElementById('entMotivo').value;
   var dif=env-dev;
-  document.getElementById('entDifWrap').style.display=dif>0?'block':'none';
+  document.getElementById('entDifWrap').style.display=dif!==0?'block':'none';
+  var ms=document.getElementById('entMotivo'),lista=dif>0?MOTIVOS_FALTA:MOTIVOS_SOBRA,atual=ms.value,chave=dif>0?'f':'s';
+  if(dif!==0&&ms.dataset.k!==chave){ms.innerHTML='<option value="">Selecione...</option>'+lista.map(function(x){return '<option'+(x===atual?' selected':'')+'>'+esc(x)+'</option>';}).join('');ms.dataset.k=chave;}
+  var lm=ms.previousElementSibling;if(lm&&dif!==0)lm.textContent='Motivo * · vieram '+Math.abs(dif)+' pecas a '+(dif>0?'menos':'mais')+' que o saco';
+  var lo=document.getElementById('entObs').parentNode.querySelector('label');if(lo)lo.textContent=dif!==0?'Observacoes * (explique a diferenca)':'Observacoes (opc.)';
   var ri=document.getElementById('entRepasseInfo');
   var cb=document.getElementById('entContaBox');if(!cb){cb=document.createElement('div');cb.id='entContaBox';cb.className='ent-conta';ri.parentNode.insertBefore(cb,ri);}
   var boas=Math.max(0,dev-refugo);
-  cb.innerHTML=document.getElementById('entQtdDev').value===''?'':(rep>0?'<span>Contadas <b>'+dev+'</b></span><span>&rarr; todas voltam para <b style="color:#c4b5fd">repasse</b></span>':'<span>Contadas <b>'+dev+'</b></span><span>&minus; Refugo <b style="color:#f87171">'+refugo+'</b></span><span>= Boas <b style="color:#4ade80">'+boas+'</b></span>'+(dif>0?'<span class="falta">Faltam <b>'+dif+'</b> de '+env+'</span>':''))+(refugo>dev?'<span class="falta">Refugo maior que o contado</span>':'')+(dev>env?'<span class="falta" style="color:#f87171">Contou '+dev+', mas o saco tem '+env+': reconte</span>':'');
+  cb.innerHTML=document.getElementById('entQtdDev').value===''?'':(rep>0?'<span>Contadas <b>'+dev+'</b></span><span>&rarr; todas voltam para <b style="color:#c4b5fd">repasse</b></span>':'<span>Contadas <b>'+dev+'</b></span><span>&minus; Refugo <b style="color:#f87171">'+refugo+'</b></span><span>= Boas <b style="color:#4ade80">'+boas+'</b></span>'+(dif>0?'<span class="falta">Faltam <b>'+dif+'</b> de '+env+'</span>':''))+(refugo>dev?'<span class="falta">Refugo maior que o contado</span>':'')+(dev>env?'<span class="falta">Vieram <b>'+(dev-env)+'</b> a mais que o saco ('+env+')</span>':'');
   if(rep>0){
     ri.style.display='block';
     ri.textContent='Repasse do saco inteiro: as '+rep+' pecas voltam ao terceiro para refazer. O saco fica em "Repasse" ate a saida em Movimentacao > Saida.';
@@ -2700,10 +2704,10 @@ function salvarEntrada(){
     var motivo=document.getElementById('entMotivo').value;
     var quemLimpou=entSacoAtual.limpouPor||'';
     if(!conf||!qtdDev){msg_('msgEnt','<div class="alert alert-err">Preencha conferente e qtd.</div>');btn.disabled=false;return;}
-    if(dif>0&&!motivo){msg_('msgEnt','<div class="alert alert-err">Diferenca detectada — selecione o motivo.</div>');btn.disabled=false;return;}
+    if(dif!==0&&!motivo){msg_('msgEnt','<div class="alert alert-err">Vieram '+Math.abs(dif)+' pecas a '+(dif>0?'MENOS':'MAIS')+' que o saco ('+env+'): selecione o motivo.</div>');btn.disabled=false;return;}
+    if(dif!==0&&!document.getElementById('entObs').value.trim()){msg_('msgEnt','<div class="alert alert-err">Explique nas observacoes a diferenca de '+Math.abs(dif)+' pecas a '+(dif>0?'menos':'mais')+'.</div>');btn.disabled=false;return;}
     if((motivo==='Refugo de terceiro'||motivo==='Refugo de producao')&&Number(refugo)<=0){msg_('msgEnt','<div class="alert alert-err">Motivo Refugo selecionado — informe a quantidade de Refugo.</div>');btn.disabled=false;return;}
     var repTodo=document.getElementById('entRepTodo').checked;
-    if(dev>env){msg_('msgEnt','<div class="alert alert-err">Foram contadas '+dev+' pecas, mas o saco tem '+env+'. Reconte: nao pode voltar mais do que foi enviado.</div>');btn.disabled=false;return;}
     if(!repTodo&&Number(refugo)>dev){msg_('msgEnt','<div class="alert alert-err">O refugo ('+refugo+') nao pode ser maior que as pecas contadas ('+dev+').</div>');btn.disabled=false;return;}
     dados.quemEntrada=entSacoAtual.quemRecebeu||'';dados.conferente=conf;dados.qtdDev=repTodo?'0':String(Math.max(0,dev-(Number(refugo)||0)));
     dados.refugo=repTodo?'0':refugo;dados.qtdRepasse=repTodo?qtdDev:'0';dados.destino='';
