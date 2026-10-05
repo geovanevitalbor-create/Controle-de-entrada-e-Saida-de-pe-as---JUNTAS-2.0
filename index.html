@@ -752,6 +752,12 @@ tr.pxt-tot td{background:rgba(0,131,62,.16)!important;font-weight:800;color:var(
 .chip-conf.pend{color:#9ca3af;background:rgba(127,127,127,.1);border-color:rgba(156,163,175,.35)}
 .chip-conf.ret{color:#93c5fd;background:rgba(37,99,235,.15);border-color:rgba(96,165,250,.45)}
 .rt-fs:not(:empty){display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 10px;padding:8px 12px;border-radius:9px;background:rgba(0,131,62,.1);border:1px solid rgba(0,131,62,.35);font-size:12px;color:var(--text2)}
+.kvf{position:relative;display:inline-block;perspective:500px;min-height:1.1em}
+.kvf-a,.kvf-b{display:inline-block;white-space:nowrap;transform-origin:50% 50%;transition:transform .38s cubic-bezier(.4,.2,.2,1),opacity .28s ease;backface-visibility:hidden}
+.kvf-b{position:absolute;left:0;top:0;opacity:0;transform:rotateX(-90deg) translateY(4px)}
+.kpi:hover .kvf-a{opacity:0;transform:rotateX(90deg) translateY(-4px)}
+.kpi:hover .kvf-b{opacity:1;transform:rotateX(0) translateY(0)}
+.kpi:hover .kvf-b .unit{color:var(--accent)}
 #scPortal iframe{border:0;width:100%;height:100vh;display:block;position:relative;z-index:1}
 </style>
 </head>
@@ -2966,17 +2972,19 @@ function consultarSacoRT(){
   rpc('buscar_saco_publico',{p_saco_id:v}).then(function(p){loadTempoReal();if(p&&!p.erro&&p.info)verHistoricoSaco(p.info.id);else alert('Saco nao encontrado: '+v);}).catch(function(){loadTempoReal();});
 }
 function limparTempoReal(){document.getElementById('fNumRT').value='';['fTercRT','fStatusRT','fPecaRT'].forEach(function(id){document.getElementById(id).value='';});msRefreshAll();loadTempoReal();}
+function kvFlip(sacos,pecas){return '<span class="kvf" title="Passe o mouse para ver as pecas · clique para filtrar"><span class="kvf-a">'+fmtN(sacos)+' <span class="unit">sacos</span></span><span class="kvf-b">'+fmtN(pecas)+' <span class="unit">pecas</span></span></span>';}
 function renderTempoReal(dTab,dAll){
   try{
     var d=dAll||dTab,t=d.tots;
     dashPg.sacos.data=dTab.sacos||[];dashPg.sacos.page=1;renderPgSacos();
-    document.getElementById('rtAtr').innerHTML=fmtN((d.sacos||[]).filter(function(s){return s.atrasado;}).length)+' <span class="unit">sacos</span>';
-    document.getElementById('rtSep').innerHTML=fmtN(t.separado)+' <span class="unit">sacos</span>';
-    document.getElementById('rtFora').innerHTML=fmtN(t.emTerceiro)+' <span class="unit">sacos</span>';
-    document.getElementById('rtInsp').innerHTML=fmtN(t.inspecao)+' <span class="unit">sacos</span>';
-    document.getElementById('rtConf').innerHTML=fmtN(t.conferido)+' <span class="unit">sacos</span>';
-    document.getElementById('rtRep').innerHTML=fmtN(t.repasse)+' <span class="unit">sacos</span>';
-    document.getElementById('rtDevol').innerHTML=fmtN(t.devolucao)+' <span class="unit">sacos</span>';
+    var LS=d.sacos||[],pq=function(f){return LS.filter(f).reduce(function(a,s){return a+(s.qtd||0);},0);},st=function(x){return function(s){return s.st===x;};};
+    document.getElementById('rtAtr').innerHTML=kvFlip(LS.filter(function(s){return s.atrasado;}).length,pq(function(s){return s.atrasado;}));
+    document.getElementById('rtSep').innerHTML=kvFlip(t.separado,pq(st('Separado')));
+    document.getElementById('rtFora').innerHTML=kvFlip(t.emTerceiro,pq(st('Em terceiro')));
+    document.getElementById('rtInsp').innerHTML=kvFlip(t.inspecao,pq(st('Em Inspecao')));
+    document.getElementById('rtConf').innerHTML=kvFlip(t.conferido,pq(st('Conferido/Finalizado')));
+    document.getElementById('rtRep').innerHTML=kvFlip(t.repasse,pq(st('Repasse')));
+    document.getElementById('rtDevol').innerHTML=kvFlip(t.devolucao,pq(st('Devolucao')));
     document.getElementById('rtPecs').innerHTML=fmtN(t.pecasFora)+' <span class="unit">pecas</span>';
     document.getElementById('rtPecInsp').innerHTML=fmtN(t.pecasInspecao)+' <span class="unit">pecas</span>';
     var dc=document.getElementById('cDonutRT').getContext('2d');
@@ -4090,7 +4098,7 @@ function renderRecCons(){
   var base=rcDados.filter(function(s){return (!fT.length||fT.indexOf(s.ter)!==-1)&&(!fP.length||fP.indexOf(s.pec)!==-1)&&(!b||String(s.num)===b||s.id.toLowerCase().indexOf(b)!==-1);});
   var l=base.filter(function(s){return !fS.length||fS.indexOf(s.st)!==-1||(fS.indexOf('__atraso')!==-1&&s.atrasado);});
   function cnt(st){return base.filter(function(s){return s.st===st;});}
-  function k(c,lb,arr,sub,v){var on=fS.length===1&&fS[0]===v;return '<div class="kpi '+c+' kpi-click'+(on?' kpi-on':'')+'" onclick="rcFiltrarStatus(\''+v+'\')" title="Filtrar"><div class="kpi-bar"></div><div class="kpi-lbl">'+lb+'</div><div class="kpi-val">'+fmtN(arr.length)+' <span class="unit">sacos · '+fmtN(arr.reduce(function(a,s){return a+s.qtd;},0))+' pecas</span></div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';}
+  function k(c,lb,arr,sub,v){var on=fS.length===1&&fS[0]===v;return '<div class="kpi '+c+' kpi-click'+(on?' kpi-on':'')+'" onclick="rcFiltrarStatus(\''+v+'\')" title="Filtrar"><div class="kpi-bar"></div><div class="kpi-lbl">'+lb+'</div><div class="kpi-val">'+kvFlip(arr.length,arr.reduce(function(a,s){return a+s.qtd;},0))+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';}
   var atr=cnt('Em terceiro').filter(function(s){return s.atrasado;}).length;
   document.getElementById('rcKpis').innerHTML=k('ka','A receber',cnt('Em terceiro'),atr?'<span style="color:#f87171">'+atr+' fora do prazo</span>':'dentro do prazo','Em terceiro')+k('ki','Em inspecao',cnt('Em Inspecao'),'aguardando conferencia','Em Inspecao')+k('kr','Para enviar repasse',cnt('Repasse'),'voltam ao terceiro','Repasse')+k('ks','Devolucao',cnt('Devolucao'),'retornaram sem limpeza','Devolucao');
   var porT={};l.forEach(function(s){var x=porT[s.ter]||(porT[s.ter]={n:0,p:0});x.n++;x.p+=s.qtd;});
