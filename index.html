@@ -764,6 +764,7 @@ tr.pxt-tot td{background:rgba(0,131,62,.16)!important;font-weight:800;color:var(
 .conta-dica{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text3);margin-left:8px}
 .conta-nota{margin-top:10px;font-size:11.5px;color:var(--text3)}.conta-nota b{color:var(--text2)}
 @media(max-width:900px){.conta-row{grid-template-columns:1fr}.conta-op{padding:2px 0}}
+.ent-conta:not(:empty){display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:10px;padding:9px 13px;border-radius:10px;background:rgba(0,131,62,.08);border:1px solid rgba(0,131,62,.35);font-size:12.5px;color:var(--text2)}.ent-conta b{font-size:15px;color:var(--text)}.ent-conta .falta{color:#fbbf24}.ent-conta .falta b{color:#fbbf24}
 #scPortal iframe{border:0;width:100%;height:100vh;display:block;position:relative;z-index:1}
 </style>
 </head>
@@ -1511,8 +1512,8 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
             <div><label>Limpo por · funcionario do terceiro</label><div class="i ro-campo" id="entLimpouPor">-</div></div>
           </div>
           <div class="row3" style="margin-top:11px">
-            <div><label>Qtd contada</label><input class="i" id="entQtdDev" type="number" min="0" oninput="calcDif()"></div>
-            <div><label>Refugo</label><input class="i" id="entRefugo" type="number" min="0" value="0" oninput="calcDif()"></div>
+            <div><label>Qtd contada (total no saco)</label><input class="i" id="entQtdDev" type="number" min="0" oninput="calcDif()"></div>
+            <div><label>Refugo (dentro do contado)</label><input class="i" id="entRefugo" type="number" min="0" value="0" oninput="calcDif()"></div>
             <div><label>Repasse</label><label class="rep-tog"><input type="checkbox" id="entRepTodo" onchange="calcDif()"><span>Saco inteiro volta para repasse</span></label><input type="hidden" id="entQtdRep" value="0"></div>
           </div>
           <div id="entDifWrap" style="display:none;margin-top:11px">
@@ -2665,6 +2666,9 @@ function calcDif(){
   var dif=env-dev;
   document.getElementById('entDifWrap').style.display=dif>0?'block':'none';
   var ri=document.getElementById('entRepasseInfo');
+  var cb=document.getElementById('entContaBox');if(!cb){cb=document.createElement('div');cb.id='entContaBox';cb.className='ent-conta';ri.parentNode.insertBefore(cb,ri);}
+  var boas=Math.max(0,dev-refugo);
+  cb.innerHTML=document.getElementById('entQtdDev').value===''?'':(rep>0?'<span>Contadas <b>'+dev+'</b></span><span>&rarr; todas voltam para <b style="color:#c4b5fd">repasse</b></span>':'<span>Contadas <b>'+dev+'</b></span><span>&minus; Refugo <b style="color:#f87171">'+refugo+'</b></span><span>= Boas <b style="color:#4ade80">'+boas+'</b></span>'+(dif>0?'<span class="falta">Faltam <b>'+dif+'</b> de '+env+'</span>':''))+(refugo>dev?'<span class="falta">Refugo maior que o contado</span>':'')+(dev>env?'<span class="falta" style="color:#f87171">Contou '+dev+', mas o saco tem '+env+': reconte</span>':'');
   if(rep>0){
     ri.style.display='block';
     ri.textContent='Repasse do saco inteiro: as '+rep+' pecas voltam ao terceiro para refazer. O saco fica em "Repasse" ate a saida em Movimentacao > Saida.';
@@ -2698,7 +2702,9 @@ function salvarEntrada(){
     if(dif>0&&!motivo){msg_('msgEnt','<div class="alert alert-err">Diferenca detectada — selecione o motivo.</div>');btn.disabled=false;return;}
     if((motivo==='Refugo de terceiro'||motivo==='Refugo de producao')&&Number(refugo)<=0){msg_('msgEnt','<div class="alert alert-err">Motivo Refugo selecionado — informe a quantidade de Refugo.</div>');btn.disabled=false;return;}
     var repTodo=document.getElementById('entRepTodo').checked;
-    dados.quemEntrada=entSacoAtual.quemRecebeu||'';dados.conferente=conf;dados.qtdDev=repTodo?'0':qtdDev;
+    if(dev>env){msg_('msgEnt','<div class="alert alert-err">Foram contadas '+dev+' pecas, mas o saco tem '+env+'. Reconte: nao pode voltar mais do que foi enviado.</div>');btn.disabled=false;return;}
+    if(!repTodo&&Number(refugo)>dev){msg_('msgEnt','<div class="alert alert-err">O refugo ('+refugo+') nao pode ser maior que as pecas contadas ('+dev+').</div>');btn.disabled=false;return;}
+    dados.quemEntrada=entSacoAtual.quemRecebeu||'';dados.conferente=conf;dados.qtdDev=repTodo?'0':String(Math.max(0,dev-(Number(refugo)||0)));
     dados.refugo=repTodo?'0':refugo;dados.qtdRepasse=repTodo?qtdDev:'0';dados.destino='';
     dados.motivo=motivo;dados.quemLimpou=quemLimpou;
     dados.obs=document.getElementById('entObs').value.trim();
