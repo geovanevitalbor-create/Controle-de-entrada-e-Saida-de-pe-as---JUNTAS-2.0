@@ -832,7 +832,8 @@ function portalRemove(id){var i=DB.portalSacos.findIndex(function(p){return p.id
 function portalAdd(s,rep){portalRemove(s.saco_id);DB.portalSacos.push({id:s.saco_id,peca:s.peca,material:s.material,qtd:s.qtd_atual,terceiro:s.terceiro,status:'Em terceiro',quemTem:null,dataEvento:isoDia(agora()),repasseAoFunc:false,repasseFabrica:!!rep,confirmado:false,prontoRetirada:false});}
 function bate(f,v){if(Array.isArray(f))return !f.length||f.indexOf(v)!==-1;return !f||f===v;}
 function atrasadoSaco(s){if(s.status!=='Em terceiro')return false;var u=movsDo(s.saco_id).pop();return !!u&&Math.floor((Date.now()-new Date(u.data))/86400000)>prazoDe(s.terceiro);}
-function bateStatus(f,s){var l=Array.isArray(f)?f:(f?[f]:[]);if(!l.length)return true;var at=l.indexOf('__atraso')!==-1;return l.indexOf(s.status)!==-1||(at&&atrasadoSaco(s));}
+function temRefugo(s){return DB.movs.some(function(m){return m.saco_id===s.saco_id&&m.tipo==='Refugo'&&!m.revertido;});}
+function bateStatus(f,s){var l=Array.isArray(f)?f:(f?[f]:[]);if(!l.length)return true;var at=l.indexOf('__atraso')!==-1,rf=l.indexOf('__refugo')!==-1;return l.indexOf(s.status)!==-1||(at&&atrasadoSaco(s))||(rf&&temRefugo(s));}
 function prazoDe(n){var t=DB.terceiros.find(function(x){return x.nome===n;});return t&&Number(t.prazo)?Number(t.prazo):7;}
 function tipoLanc(t){return t==='SaidaRepasse'?'Saida':t;}
 var ABAS={Ferramentas:['ferramentas',['codigo','descricao']],MateriaPrima:['materia_prima',['tipo']],Operadores:['operadores',['nome','matricula','setor']],Terceiros:['terceiros',['nome','email','senha','prazo']],Usuarios:['usuarios',['nome','matricula','email','senha','perfil']]};
@@ -1746,7 +1747,7 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
               <option value="Em terceiro">Em terceiro</option>
               <option value="Em Inspecao">Em Inspecao</option>
               <option value="Conferido/Finalizado">Recebido</option>
-              <option value="Repasse">Repasse</option><option value="Devolucao">Devolucao</option><option value="__atraso">Fora do prazo</option>
+              <option value="Repasse">Repasse</option><option value="Devolucao">Devolucao</option><option value="__atraso">Fora do prazo</option><option value="__refugo">Com refugo</option>
             <option value="Interno">Devolucao interna</option></select>
           </div>
           <div><label>Consultar saco</label><input class="i" id="fNumRT" placeholder="No ou ID (Enter)" onkeydown="if(event.key==='Enter'){event.preventDefault();consultarSacoRT();}"></div>
@@ -1763,6 +1764,7 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
             <div class="kpi kr kpi-click" onclick="filtrarTempoReal([&#39;Repasse&#39;])" title="Filtrar a tabela abaixo"><div class="kpi-bar"></div><div class="kpi-lbl">Repasse</div><div class="kpi-val" id="rtRep">-</div></div>
             <div class="kpi ks kpi-click" onclick="filtrarTempoReal([&#39;Devolucao&#39;])" title="Filtrar a tabela abaixo"><div class="kpi-bar"></div><div class="kpi-lbl">Devolucao</div><div class="kpi-val" id="rtDevol">-</div></div>
             <div class="kpi kf kpi-click" onclick="filtrarTempoReal([&#39;__atraso&#39;])" title="Filtrar a tabela abaixo"><div class="kpi-bar"></div><div class="kpi-lbl">Fora do prazo</div><div class="kpi-val" id="rtAtr">-</div></div>
+            <div class="kpi kf kpi-click" onclick="filtrarTempoReal([&#39;__refugo&#39;])" title="Sacos com refugo na inspecao · filtrar a tabela abaixo"><div class="kpi-bar" style="background:#dc2626"></div><div class="kpi-lbl">Refugo</div><div class="kpi-val" id="rtRef">-</div></div>
           </div>
         </div>
         <div class="unit-group">
@@ -3001,7 +3003,7 @@ function loadTempoReal(){
   ['rtSep','rtFora','rtInsp','rtConf','rtRep','rtDevol','rtPecs','rtPecInsp'].forEach(function(id){document.getElementById(id).textContent='...';});
   var semStatus=Object.assign({},filtros,{status:[],num:''});
   Promise.all([rpc('get_dash',{p_filtros:filtros}),filtros.status.length||filtros.num?rpc('get_dash',{p_filtros:semStatus}):null]).then(function(r){renderTempoReal(r[0],r[1]||r[0]);}).catch(function(e){console.error(e);});
-  var fs=document.getElementById('rtFiltroStatus');if(fs)fs.innerHTML=filtros.status.length?'Tabela filtrada por: <b>'+filtros.status.map(function(s){return s==='__atraso'?'Fora do prazo':s;}).join(', ')+'</b> · os indicadores mostram todos os status <button class="btn btn-ghost btn-sm" onclick="limparStatusRT()">Mostrar todos</button>':'';
+  var fs=document.getElementById('rtFiltroStatus');if(fs)fs.innerHTML=filtros.status.length?'Tabela filtrada por: <b>'+filtros.status.map(function(s){return s==='__atraso'?'Fora do prazo':s==='__refugo'?'Com refugo':s;}).join(', ')+'</b> · os indicadores mostram todos os status <button class="btn btn-ghost btn-sm" onclick="limparStatusRT()">Mostrar todos</button>':'';
 }
 function limparStatusRT(){var s=document.getElementById('fStatusRT');Array.from(s.options).forEach(function(o){o.selected=false;});msRefreshAll();loadTempoReal();}
 function consultarSacoRT(){
@@ -3027,6 +3029,7 @@ function renderTempoReal(dTab,dAll){
     document.getElementById('rtConf').innerHTML=kvFlip(t.conferido,LS.filter(st('Conferido/Finalizado')).reduce(function(a,s){return a+(s.boas||0);},0));
     document.getElementById('rtRep').innerHTML=kvFlip(t.repasse,pq(st('Repasse')));
     document.getElementById('rtDevol').innerHTML=kvFlip(t.devolucao,pq(st('Devolucao')));
+    (function(){var r=LS.filter(function(s){return s.ref>0;});document.getElementById('rtRef').innerHTML=kvFlip(r.length,r.reduce(function(a,s){return a+s.ref;},0));})();
     document.getElementById('rtPecs').innerHTML=kv2(t.pecasFora,t.emTerceiro);
     document.getElementById('rtPecInsp').innerHTML=kv2(t.pecasInspecao,t.inspecao);
     var dc=document.getElementById('cDonutRT').getContext('2d');
