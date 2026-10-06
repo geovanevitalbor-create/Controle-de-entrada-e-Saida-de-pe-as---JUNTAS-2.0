@@ -4215,12 +4215,12 @@ function carregarStatsColab(){
     if(temAcesso('envio'))rpc('separados_do_dia',{}).then(function(r){
       var hj=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
       set('sephoje',r.sacos?r.sacos+' saco(s) · '+fmtN(r.pecas)+' pecas hoje':'Nenhum saco separado hoje',r.sacos>0);
-      if(!pn){cs.classList.add('dois');cs.innerHTML=st('Sacos separados',r.sacos,'hoje, '+hj+' · ver sacos','#a78bfa','abrirSeparadosHoje()')+st('Pecas separadas',r.pecas,'hoje, '+hj,'','abrirSeparadosHoje()');}
+      if(!pn){cs.classList.add('dois');cs.innerHTML=st('Separados hoje',r.pecas,r.sacos,hj+' · ver sacos','#a78bfa','abrirSeparadosHoje()');}
     });
     if(pn||!temAcesso('envio'))cs.classList.remove('dois');
     set('reccons',t.emTerceiro+' a receber · '+t.inspecao+' em inspecao · '+t.repasse+' repasse',t.inspecao+t.repasse>0);
     if(!pn&&temAcesso('receb')&&!temAcesso('envio')){var aR=(d.sacos||[]).filter(function(s){return s.atrasado;}).length;
-      cs.innerHTML=st('A receber',t.emTerceiro,aR?aR+' fora do prazo':'sacos com terceiros','#fbbf24',"abrirRecCons(['Em terceiro'])")+st('Em inspecao',t.inspecao,'sacos','#22d3ee',"abrirRecCons(['Em Inspecao'])")+st('Para repasse',t.repasse,'sacos a enviar','#a78bfa',"abrirRecCons(['Repasse'])")+st('Devolucao',t.devolucao,'sacos','#60a5fa',"abrirRecCons(['Devolucao'])");}
+      cs.innerHTML=st('A receber',t.pecasFora,t.emTerceiro,aR?aR+' saco(s) fora do prazo':'com os terceiros','#fbbf24',"abrirRecCons(['Em terceiro'])")+st('Em inspecao',t.pecasInspecao,t.inspecao,'aguardando conferencia','#22d3ee',"abrirRecCons(['Em Inspecao'])")+st('Para repasse',pq(function(s){return s.st==='Repasse';}),t.repasse,'a enviar ao terceiro','#a78bfa',"abrirRecCons(['Repasse'])")+st('Devolucao',pq(function(s){return s.st==='Devolucao';}),t.devolucao,'aguardando destino','#60a5fa',"abrirRecCons(['Devolucao'])");}
     set('admin',atr?atr+' saco(s) fora do prazo':'Nenhum saco atrasado',atr>0);
     function lig(id,on,sts){var e=document.getElementById('cmc-'+id);if(!e)return;e.onclick=on?function(ev){ev.stopPropagation();filtrarTempoReal(sts);}:null;e.title=on?'Ver sacos no Tempo Real':'';e.style.cursor=on?'pointer':'';}
     lig('devol',pn&&t.separado>0,['Separado']);lig('insp',pn&&t.inspecao>0,['Em Inspecao']);lig('mov',pn&&t.repasse>0,['Repasse']);
