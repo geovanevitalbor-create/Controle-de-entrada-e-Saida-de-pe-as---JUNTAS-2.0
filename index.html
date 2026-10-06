@@ -787,6 +787,8 @@ body.modo-sacos .cm-st:hover .kv2-s{opacity:0;transform:rotateX(90deg) translate
 .cm-st b .kv2 .unit{font-size:10px!important;font-weight:600!important;color:var(--text3)!important;margin-left:4px;text-transform:none!important;letter-spacing:0!important}
 .div-box:not(:empty){display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin:0 0 10px;padding:9px 14px;border-radius:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.4);font-size:12.5px;color:var(--text2)}
 .div-t{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#fbbf24}.div-c b{font-size:15px}.div-c.sob b{color:#fbbf24}.div-c.fal b{color:#f87171}
+.kpi-sub{font-size:10.5px;color:var(--text3);margin-top:4px}
+#kDivCard{cursor:pointer}#kDivCard:hover{border-color:#fbbf24}
 #scPortal iframe{border:0;width:100%;height:100vh;display:block;position:relative;z-index:1}
 </style>
 </head>
@@ -1783,8 +1785,9 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
         <div class="unit-group">
           <div class="unit-group-ttl"><span class="tag tag-periodo">PERIODO</span>A conta do periodo filtrado <span class="conta-dica">passe o mouse nos cards para ver em sacos</span></div>
           <div class="conta-row c3"><div class="kpi kt" title="Pecas que sairam da fabrica no periodo (envios + repasses)"><div class="kpi-bar"></div><div class="kpi-lbl">Enviado aos terceiros</div><div class="kpi-val" id="kPecEnv">-</div></div><div class="conta-op">=</div><div class="kpi kg" title="Pecas que voltaram dos terceiros no periodo (limpas ou sem limpeza)"><div class="kpi-bar"></div><div class="kpi-lbl">Chegou na fabrica</div><div class="kpi-val" id="kPecConf">-</div></div><div class="conta-op">+</div><div class="kpi ka" title="Enviado - chegou, no periodo. Se der negativo, chegaram no periodo pecas enviadas antes dele"><div class="kpi-bar"></div><div class="kpi-lbl">Ainda com terceiros</div><div class="kpi-val" id="kContaSaldo">-</div></div></div>
-          <div class="unit-group-ttl" style="margin-top:14px"><span class="tag tag-periodo" style="background:rgba(22,163,74,.15);color:#4ade80;border-color:rgba(22,163,74,.4)">CHEGOU</span><span id="kContaTit">As <b id="kContaChegou">-</b> pecas que chegaram na fabrica foram para</span></div>
-          <div id="kDivBox" class="div-box"></div>
+          <div class="unit-group-ttl" style="margin-top:14px"><span class="tag tag-periodo" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.4)">CONTAGEM</span>O que chegou x o que a inspecao contou</div>
+          <div class="conta-row c3"><div class="kpi kg" title="Pecas bipadas na chegada (quantidade da etiqueta)"><div class="kpi-bar"></div><div class="kpi-lbl">Chegou (etiqueta)</div><div class="kpi-val" id="kContaCheg2">-</div></div><div class="conta-op">+</div><div class="kpi ka kpi-click" id="kDivCard" onclick="verDivergencias()" title="Clique para ver os sacos com divergencia e os motivos"><div class="kpi-bar"></div><div class="kpi-lbl">Divergencia na contagem</div><div class="kpi-val" id="kContaDiv">-</div><div class="kpi-sub" id="kContaDivSub"></div></div><div class="conta-op">=</div><div class="kpi kt" title="Quantidade real depois da conferencia"><div class="kpi-bar"></div><div class="kpi-lbl">Total real (apos contagem)</div><div class="kpi-val" id="kContaReal">-</div></div></div>
+          <div class="unit-group-ttl" style="margin-top:14px"><span class="tag tag-periodo" style="background:rgba(22,163,74,.15);color:#4ade80;border-color:rgba(22,163,74,.4)">RESULTADO</span><span id="kContaTit">-</span></div>
           <div class="conta-row c5"><div class="kpi kg" title="Pecas aprovadas na inspecao"><div class="kpi-bar"></div><div class="kpi-lbl">Aprovadas (boas)</div><div class="kpi-val" id="kContaBoas">-</div></div><div class="conta-op">+</div><div class="kpi kf" title="Pecas reprovadas na inspecao"><div class="kpi-bar"></div><div class="kpi-lbl">Refugo</div><div class="kpi-val" id="kRefugo">-</div></div><div class="conta-op">+</div><div class="kpi kr" title="Pecas que voltaram ao terceiro para refazer"><div class="kpi-bar"></div><div class="kpi-lbl">Repasse</div><div class="kpi-val" id="kPecRep">-</div></div><div class="conta-op">+</div><div class="kpi ks" title="Pecas que voltaram sem limpeza"><div class="kpi-bar"></div><div class="kpi-lbl">Devolucao</div><div class="kpi-val" id="kPecDevol">-</div></div><div class="conta-op">+</div><div class="kpi ki" title="Chegaram no periodo e ainda nao foram conferidas"><div class="kpi-bar"></div><div class="kpi-lbl">Aguardando inspecao</div><div class="kpi-val" id="kContaAguard">-</div></div></div>
           <div class="conta-nota">Separacoes no periodo: <b id="kSeparacoes">-</b> · <span id="kContaCheck"></span></div>
         </div>
@@ -3134,8 +3137,12 @@ function renderDash(d){
     var fp=kv2,GQ=agruparPorSaco(EV),nG=function(f){return GQ.filter(f).length;};
     var env=t.pecasEnviadas||0,cheg=t.pecasConferidas||0,dev=t.pecasDevolucao||0,ref=t.refugoTotal||0,rp=t.pecasRepasse||0,boas=GQ.reduce(function(a,g){return a+g.boas;},0),sdo=env-cheg;
     var sob=0,fal=0,nSob=0,nFal=0,ag=0;GQ.forEach(function(g){if(!g.chegQ)return;var res=g.boas+g.ref+g.rep+g.dev;if(!res){ag+=g.chegQ;return;}var df=res-g.chegQ;if(df>0){sob+=df;nSob++;}else if(df<0){fal-=df;nFal++;}});
-    var tit=document.getElementById('kContaTit');if(tit)tit.innerHTML='As <b>'+fmtN(cheg)+'</b> pecas que chegaram'+(sob?' <b style="color:#fbbf24">+ '+fmtN(sob)+' a mais</b>':'')+(fal?' <b style="color:#f87171">- '+fmtN(fal)+' faltando</b>':'')+((sob||fal)?' = <b>'+fmtN(cheg+sob-fal)+'</b>':'')+' foram para';
-    var db=document.getElementById('kDivBox');if(db)db.innerHTML=(sob||fal)?'<span class="div-t">Divergencia na contagem da inspecao</span>'+(sob?'<span class="div-c sob"><b>+'+fmtN(sob)+'</b> pecas a mais em '+nSob+' saco(s)</span>':'')+(fal?'<span class="div-c fal"><b>-'+fmtN(fal)+'</b> pecas faltando em '+nFal+' saco(s)</span>':'')+'<button class="btn btn-ghost btn-sm" onclick="verDivergencias()">Ver sacos e motivos</button>':'';
+    var real=cheg+sob-fal,net=sob-fal;
+    document.getElementById('kContaTit').innerHTML='As <b>'+fmtN(real)+'</b> pecas reais foram para';
+    document.getElementById('kContaCheg2').innerHTML=fp(cheg,t.sacosRecebidos||0);
+    document.getElementById('kContaDiv').innerHTML='<span style="color:'+(net>0?'#fbbf24':net<0?'#f87171':'var(--text)')+'">'+(net>0?'+':'')+fmtN(net)+'</span> <span class="unit">pecas</span>';
+    document.getElementById('kContaDivSub').innerHTML=(sob||fal)?'<span style="color:#fbbf24">+'+fmtN(sob)+' a mais ('+nSob+' saco'+(nSob>1?'s':'')+')</span> · <span style="color:#f87171">-'+fmtN(fal)+' faltando ('+nFal+' saco'+(nFal>1?'s':'')+')</span> · clique para ver':'Sem divergencia';
+    document.getElementById('kContaReal').innerHTML=fp(real,t.sacosRecebidos||0);
     document.getElementById('kSeparacoes').textContent=fmtN(t.separacoes||0)+' sacos';
     document.getElementById('kPecEnv').innerHTML=fp(env,t.sacosEnviados||0);
     document.getElementById('kPecConf').innerHTML=fp(cheg,t.sacosRecebidos||0);
@@ -3145,7 +3152,7 @@ function renderDash(d){
     document.getElementById('kRefugo').innerHTML=fp(ref,nG(function(g){return g.ref>0;}));
     document.getElementById('kPecRep').innerHTML=fp(rp,nG(function(g){return g.rep>0;}));
     document.getElementById('kContaAguard').innerHTML=fp(ag,nG(function(g){return g.chegQ>0&&!g.boas&&!g.ref&&!g.rep&&!g.dev;}));
-    document.getElementById('kContaCheck').innerHTML='Conferindo: '+fmtN(env)+' = '+fmtN(cheg)+' + '+fmtN(sdo)+(sdo<0?' <span style="color:#fbbf24">(negativo: chegaram no periodo pecas enviadas antes dele)</span>':'')+' · '+fmtN(cheg)+(sob?' + '+fmtN(sob):'')+(fal?' - '+fmtN(fal):'')+' = '+fmtN(boas)+' + '+fmtN(ref)+' + '+fmtN(rp)+' + '+fmtN(dev)+' + '+fmtN(ag);
+    document.getElementById('kContaCheck').innerHTML='<b>Conta 1</b> '+fmtN(env)+' enviado = '+fmtN(cheg)+' chegou + '+fmtN(sdo)+' com terceiros'+(sdo<0?' <span style="color:#fbbf24">(negativo: chegaram no periodo pecas enviadas antes dele)</span>':'')+' &nbsp;·&nbsp; <b>Conta 2</b> '+fmtN(cheg)+' chegou '+(net>=0?'+ ':'- ')+fmtN(Math.abs(net))+' divergencia = '+fmtN(real)+' real &nbsp;·&nbsp; <b>Conta 3</b> '+fmtN(real)+' = '+fmtN(boas)+' boas + '+fmtN(ref)+' refugo + '+fmtN(rp)+' repasse + '+fmtN(dev)+' devolucao + '+fmtN(ag)+' aguardando';
     var gopts=function(extra){
       var base={onClick:function(e,els,c){abrirPxT(els.length&&c.config.type==='bar'?c.data.labels[els[0].index]:'');},onHover:function(e,els){e.native.target.style.cursor=els.length?'pointer':'default';},responsive:true,maintainAspectRatio:false,
         scales:{x:{stacked:true,ticks:{color:'#9aa39d',font:{size:9}},grid:{color:'rgba(255,255,255,.06)'}},
