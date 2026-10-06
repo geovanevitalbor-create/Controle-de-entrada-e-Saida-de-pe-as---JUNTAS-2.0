@@ -1030,7 +1030,7 @@ RPC.get_dash=function(p){
   sacos.forEach(function(s){if(s.status!=='Em Inspecao')return;var k=s.terceiro+'|'+s.peca;if(tp[k])tp[k].insp+=s.qtd_atual;});
   var porTercPeca=Object.keys(tp).map(function(k){var o=tp[k];o.recebido=Math.max(0,o.rec-o.devolucao);delete o.rec;return o;}).sort(function(a,b){return a.terceiro===b.terceiro?String(a.peca).localeCompare(b.peca):a.terceiro.localeCompare(b.terceiro);});
   var lista=sacos.slice().sort(function(a,b){return b.num-a.num;}).map(function(s){var ms=movsDo(s.saco_id),u=ms[ms.length-1],dias=u?diasCal(u.data,new Date()):0,pz=prazoDe(s.terceiro),sm=function(t){return soma(ms.filter(function(m){return t.indexOf(m.tipo)!==-1;}),function(m){return m.tipo==='Devolucao'?(m.qtdEnv||m.qtd):m.qtd;});},dv=sm(['Devolucao']);
-    return {num:s.num,id:s.saco_id,ter:s.terceiro,pec:s.peca,qtd:s.qtd_atual,st:s.status,op:s.operador,mat:s.matricula,dataSep:fmtBR(s.data_label),dias:dias,prazo:pz,atrasado:s.status==='Em terceiro'&&dias>pz,desdeIso:u?u.data:null,boas:soma(ms.filter(function(m){return m.tipo==='Inspecao';}),boasMov),saidaIso:(function(){var sa=ms.filter(function(m){return m.tipo==='Saida'||m.tipo==='SaidaRepasse';});return sa.length?sa[sa.length-1].data:null;})(),recebIso:s.data_recebimento||null,diasFora:(function(){var sa=ms.filter(function(m){return m.tipo==='Saida'||m.tipo==='SaidaRepasse';});if(!sa.length)return null;var tot=0;sa.forEach(function(m){var r=ms.find(function(x){return x.tipo==='Recebido'&&x.data>=m.data;});tot+=diasCal(m.data,r?r.data:new Date());});return tot;})(),env:sm(['Saida','SaidaRepasse']),recb:Math.max(0,sm(['Recebido'])-dv),ref:sm(['Refugo']),rp:sm(['Repasse']),dev:dv};});
+    return {num:s.num,id:s.saco_id,ter:s.terceiro,pec:s.peca,qtd:s.qtd_atual,st:s.status,op:s.operador,mat:s.matricula,dataSep:fmtBR(s.data_label),dias:dias,prazo:pz,atrasado:s.status==='Em terceiro'&&dias>pz,desdeIso:u?u.data:null,boas:soma(ms.filter(function(m){return m.tipo==='Inspecao';}),boasMov),saidaIso:(function(){var sa=ms.filter(function(m){return m.tipo==='Saida'||m.tipo==='SaidaRepasse';});return sa.length?sa[sa.length-1].data:null;})(),recebIso:s.data_recebimento||null,diasFora:(function(){var sa=ms.filter(function(m){return m.tipo==='Saida'||m.tipo==='SaidaRepasse';});if(!sa.length)return null;var tot=0;sa.forEach(function(m){var r=ms.find(function(x){return x.tipo==='Recebido'&&x.data>=m.data;});tot+=diasCal(m.data,r?r.data:new Date());});return tot;})(),env:sm(['Saida','SaidaRepasse']),recb:Math.max(0,sm(['Recebido'])-dv),ref:sm(['Refugo']),rp:sm(['Repasse']),dev:dv,cheg:sm(['Recebido']),motivo:(function(){var x=ms.filter(function(m){return (m.tipo==='Inspecao'||m.tipo==='Devolucao')&&m.motivo;});return x.length?x[x.length-1].motivo:'';})()};});
   return {tots:tots,porStatus:porStatus,porTerc:porTerc,inspecoes:movs.filter(function(m){return m.tipo==='Inspecao';}).map(function(m){return {dataIso:m.data,id:m.saco_id,ter:m.terceiro,pec:m.peca,env:m.qtdEnv||0,boa:m.qtd||0,ref:m.refugo||0,rep:m.qtdRep||0,motivo:m.motivo||'',quem:m.quem||''};}),sacosFiltrados:sacosFiltrados,sacos:lista,porTercPeca:porTercPeca,motivos:Object.keys(mot).map(function(k){return {m:k,v:mot[k]};})};
 };
 RPC.get_peca_historico=function(p){
@@ -1774,7 +1774,7 @@ window.addEventListener('load',function(){if(new URLSearchParams(window.location
           <div class="chart-box"><h3>Pecas em Terceiro Agora (por terceiro)</h3><div class="chart-h"><canvas id="cBarraRT"></canvas></div></div>
         </div>
         <div class="tbl-box"><h3>Sacos (conforme filtro)</h3><div id="rtFiltroStatus" class="rt-fs"></div>
-          <table><thead><tr><th>No</th><th>ID</th><th>Terceiro</th><th>Peca</th><th>Qtd</th><th>Status atual do saco</th><th>Separado por</th><th>Data Sep.</th><th>Dias no Status</th></tr></thead>
+          <table><thead><tr><th>No</th><th>ID</th><th>Terceiro</th><th>Peca</th><th class="r">Enviado</th><th class="r">Chegou</th><th class="r">Aprovadas (boas)</th><th class="r">Refugo</th><th class="r">Repasse</th><th class="r">Devolucao</th><th class="r">A mais / a menos</th><th>Status atual do saco</th><th>Motivo</th><th>Separado por</th><th>Data Sep.</th><th class="r">Dias fora</th></tr></thead>
           <tbody id="tSacos"></tbody></table>
           <div class="pg" id="pgSacos"></div>
         </div>
@@ -3020,7 +3020,7 @@ function renderTempoReal(dTab,dAll){
     document.getElementById('rtSep').innerHTML=kvFlip(t.separado,pq(st('Separado')));
     document.getElementById('rtFora').innerHTML=kvFlip(t.emTerceiro,pq(st('Em terceiro')));
     document.getElementById('rtInsp').innerHTML=kvFlip(t.inspecao,pq(st('Em Inspecao')));
-    document.getElementById('rtConf').innerHTML=kvFlip(t.conferido,pq(st('Conferido/Finalizado')));
+    document.getElementById('rtConf').innerHTML=kvFlip(t.conferido,LS.filter(st('Conferido/Finalizado')).reduce(function(a,s){return a+(s.boas||0);},0));
     document.getElementById('rtRep').innerHTML=kvFlip(t.repasse,pq(st('Repasse')));
     document.getElementById('rtDevol').innerHTML=kvFlip(t.devolucao,pq(st('Devolucao')));
     document.getElementById('rtPecs').innerHTML=kv2(t.pecasFora,t.emTerceiro);
@@ -3081,10 +3081,13 @@ function renderPgSacos(){
   document.getElementById('tSacos').innerHTML=rows.length
     ?rows.map(function(s){
         var pz=s.prazo||7,dc2=s.st==='Em terceiro'?(s.dias>pz?'old':s.dias>pz*0.7?'mid':'ok'):(s.dias>7?'old':s.dias>3?'mid':'ok');
-        return '<tr style="cursor:pointer" onclick="verHistoricoSaco(\''+s.id+'\')" title="Ver historico completo"><td>'+esc(String(s.num))+'</td><td style="font-size:10px;color:var(--accent)">'+esc(s.id)+'</td><td>'+esc(s.ter)+'</td><td>'+esc(s.pec)+'</td><td>'+fmtN(s.qtd)+'</td>'+
-          '<td>'+badgeStatus_(s.st,s.id,s.ter)+'</td><td>'+esc(s.op||'-')+(s.mat?' <span style="color:var(--text3);font-size:10px">RE:'+esc(s.mat)+'</span>':'')+'</td><td>'+esc(s.dataSep||'-')+'</td><td><span class="dc '+dc2+'">'+s.dias+'d</span></td></tr>';
+        var n=function(v,c){return v?'<b'+(c?' style="color:'+c+'"':'')+'>'+fmtN(v)+'</b>':'<span style="color:var(--text3)">-</span>';},res=(s.boas||0)+(s.ref||0)+(s.rp||0)+(s.dev||0),df=(s.cheg&&res)?res-s.cheg:0;
+        return '<tr style="cursor:pointer" onclick="verHistoricoSaco(\''+s.id+'\')" title="Ver historico completo"><td>'+esc(String(s.num))+'</td><td style="font-size:10px;color:var(--accent)">'+esc(s.id)+'</td><td>'+esc(s.ter)+'</td><td>'+esc(s.pec)+'</td>'+
+          '<td class="r">'+n(s.env)+'</td><td class="r">'+n(s.cheg,'#22d3ee')+'</td><td class="r">'+n(s.boas,'#4ade80')+'</td><td class="r">'+n(s.ref,'#f87171')+'</td><td class="r">'+n(s.rp,'#c4b5fd')+'</td><td class="r">'+n(s.dev,'#93c5fd')+'</td>'+
+          '<td class="r">'+(df?'<b style="color:'+(df>0?'#fbbf24':'#f87171')+'">'+(df>0?'+':'')+fmtN(df)+'</b>':'<span style="color:var(--text3)">-</span>')+'</td>'+
+          '<td>'+badgeStatus_(s.st,s.id,s.ter)+'</td><td style="font-size:11px;color:var(--text3)">'+esc(s.motivo||'-')+'</td><td>'+esc(s.op||'-')+'</td><td>'+esc(s.dataSep||'-')+'</td><td class="r">'+(s.diasFora==null?'<span style="color:var(--text3)">-</span>':'<span class="dc '+(s.st==='Em terceiro'?dc2:'ok')+'">'+s.diasFora+'d</span>')+'</td></tr>';
       }).join('')
-    :'<tr><td colspan="9" class="empty">Nenhum saco para o filtro</td></tr>';
+    :'<tr><td colspan="16" class="empty">Nenhum saco para o filtro</td></tr>';
   pgBar('pgSacos',dashPg.sacos,renderPgSacos);
 }
 function agruparPorSaco(ev){
