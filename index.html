@@ -1021,6 +1021,7 @@ RPC.buscar_saco_recebimento=function(p){var s=sacoById(p.p_saco_id);if(!s)return
 function limpouPorDe(s){var hs=DB.historicoFunc.filter(function(x){return x.sacoId===s.saco_id;}).sort(function(a,b){return String(a.tsFim||a.dataFim)<String(b.tsFim||b.dataFim)?-1:1;});var fid=hs.length?hs[hs.length-1].funcId:s.func_ultimo;var f=fid?DB.funcionarios.find(function(x){return x.id===fid;}):null;return f?f.nome:'';}
 RPC.registrar_recebimento_manual=function(p){
   var s=sacoById(p.p_saco_id);if(!s||s.status!=='Em terceiro')return {erro:'Status invalido.'};
+  if(!MOCK_NOW){var cf=cicloFuncSaco(s.saco_id);if(cf.com)return {erro:'Saco ainda esta com '+cf.com+' (funcionario do terceiro). O terceiro precisa registrar no Portal que recebeu de volta.'};if(!cf.ok)return {erro:'O terceiro ainda nao registrou no Portal a entrega a um funcionario e o recebimento de volta.'};}
   s.status='Em Inspecao';s.quem_recebeu=p.p_quem_recebeu;s.data_recebimento=agora().toISOString();
   var ps=DB.portalSacos.find(function(x){return x.id===s.saco_id;});if(ps&&ps.quemTem)s.func_ultimo=ps.quemTem;
   addMov(s,'Recebido',{qtd:s.qtd_atual,quem:p.p_quem_recebeu});portalRemove(s.saco_id);return {ok:true};
@@ -1029,6 +1030,7 @@ RPC.registrar_devolucao_entrada=function(p){
   var s=sacoById(p.p_saco_id);if(!s||s.status!=='Em terceiro')return {erro:'Status invalido.'};
   var qd=Number(p.p_qtd),esp=s.qtd_atual;if(!(qd>=0)||qd>esp)return {erro:'Quantidade invalida.'};if(qd<esp&&!p.p_motivo)return {erro:'Informe o motivo da diferenca.'};
   if(p.p_destino!=='interno'&&p.p_destino!=='repassar')return {erro:'Escolha se fica interno ou sera repassado.'};
+  if(!MOCK_NOW){var cf=cicloFuncSaco(s.saco_id);if(cf.com)return {erro:'Saco ainda esta com '+cf.com+' (funcionario do terceiro). O terceiro precisa registrar no Portal que recebeu de volta.'};}
   var ps=DB.portalSacos.find(function(x){return x.id===s.saco_id;});if(ps&&ps.quemTem)s.func_ultimo=ps.quemTem;
   s.quem_recebeu=p.p_quem;s.data_recebimento=agora().toISOString();
   addMov(s,'Recebido',{qtd:esp,quem:p.p_quem});
@@ -2685,6 +2687,20 @@ function resetSaidaScan(){
 }
 var recFila=[],recPend={};
 var recScanEl=setupScanEl('recScanInp',function(v){processarRecScan(v);},'scRecebimento');
+function cicloFuncSaco(sid){
+  var ps=(DB.portalSacos||[]).find(function(x){return x.id===sid;}),f=null;
+  if(ps&&ps.quemTem)f=(DB.funcionarios||[]).find(function(x){return x.id===ps.quemTem;})||{nome:'um funcionario'};
+  var ult=0;(DB.movs||[]).forEach(function(m){if(m.saco_id===sid&&(m.tipo==='Saida'||m.tipo==='SaidaRepasse')){var t=new Date(m.data).getTime();if(t>ult)ult=t;}});
+  var ok=(DB.historicoFunc||[]).some(function(h){return h.sacoId===sid&&h.tsFim&&(!ult||new Date(h.tsInicio).getTime()>=ult);});
+  return {com:f?f.nome:'',ok:ok};
+}
+function erroCicloFunc(o,info,c){
+  var t=c.com?'O saco ainda esta com '+c.com+', funcionario do terceiro '+(info.terceiro||'')+'. O terceiro precisa registrar no Portal do Parceiro que recebeu de volta. So depois a fabrica pode dar entrada.'
+    :'O terceiro '+(info.terceiro||'')+' ainda nao registrou no Portal do Parceiro a entrega deste saco a um funcionario e o recebimento de volta. Sem isso nao e possivel dar entrada para Inspecao. Se o saco voltou sem limpeza, registre pelo Envio > Devolucao.';
+  msg_(o.msg,'<div class="bip-erro"><div class="bip-erro-ic">!</div><div style="flex:1;min-width:0"><b>Entrada bloqueada · '+esc(info.id)+'</b><span>'+esc(t)+'</span><button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="verHistoricoSaco(\''+esc(info.id)+'\')">Ver historico completo</button></div></div>');
+  var z=document.querySelector(o.zona);if(z){z.classList.remove('zona-erro');void z.offsetWidth;z.classList.add('zona-erro');setTimeout(function(){z.classList.remove('zona-erro');},900);}
+  try{tocarErro();}catch(e){}
+}
 function processarRecScan(id){
   if(!id)return;
   if(bipConf){msg_('msgRecScan','<div class="alert alert-warn">Confirme ou cancele o saco aberto antes de bipar outro.</div>');return;}
@@ -2700,7 +2716,11 @@ function processarRecScan(id){
       delete recPend[id];
       if(!r||r.erro){erroStatusSaco({msg:'msgRecScan',zona:'#recScan .scan-zone',titulo:'Entrada nao permitida',regra:'So pode dar entrada em saco que esta Em terceiro (com o terceiro).',orient:ORIENT_ENT},id,r?r.erro:'Erro');recScanEl.value='';recScanEl.focus();return;}
       msg_('msgRecScan','');
-      conferirBip('e',r.info,function(){r.info.dev=window.ultimoDev;recFila.push(r.info);renderRecFila();msg_('msgRecScan','<div class="alert alert-ok">'+esc(r.info.id)+' conferido e adicionado a lista.</div>');},function(){msg_('msgRecScan','<div class="alert alert-warn">'+esc(r.info.id)+' nao foi adicionado.</div>');});
+      var abrirConf=function(){conferirBip('e',r.info,function(){r.info.dev=window.ultimoDev;recFila.push(r.info);renderRecFila();msg_('msgRecScan','<div class="alert alert-ok">'+esc(r.info.id)+' conferido e adicionado a lista.</div>');},function(){msg_('msgRecScan','<div class="alert alert-warn">'+esc(r.info.id)+' nao foi adicionado.</div>');});};
+      var bloq=function(c){return c.com||(!devEntrada&&!c.ok);},oz={msg:'msgRecScan',zona:'#recScan .scan-zone'},cf=cicloFuncSaco(r.info.id);
+      if(!bloq(cf))abrirConf();
+      else if(window.sincronizar){msg_('msgRecScan','<div class="alert alert-info">Conferindo com o Portal do Parceiro...</div>');window.sincronizar().then(function(){var c2=cicloFuncSaco(r.info.id);if(bloq(c2))erroCicloFunc(oz,r.info,c2);else{msg_('msgRecScan','');abrirConf();}},function(){erroCicloFunc(oz,r.info,cf);});}
+      else erroCicloFunc(oz,r.info,cf);
     }catch(err){msg_('msgRecScan','<div class="alert alert-err">Erro: '+esc(err.message)+'</div>');}
     recScanEl.value='';recScanEl.focus();
   }).catch(function(e){delete recPend[id];msg_('msgRecScan','<div class="alert alert-err">'+esc((e&&e.message)||String(e))+'</div>');recScanEl.value='';recScanEl.focus();});
